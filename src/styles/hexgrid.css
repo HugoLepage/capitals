@@ -1,0 +1,85 @@
+:root {
+  --hex-width: 6rem;
+  --hex-height: 5rem;
+  --border-size: 0.5rem;
+}
+
+.hex-grid-container {
+  /* center the grid in the viewport */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* small padding so content doesn't touch edges on small screens */
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+.hex-grid {
+  display: flex;
+  align-items: center;
+}
+
+.row:not(:first-child) {
+  /* Hex width * 25% (clipped part) - border for overlap */
+  margin-left: calc(-0.25 * var(--hex-width) - var(--border-size));
+}
+
+.hex,
+.hex::before {
+  clip-path: polygon(
+    25% 0%,
+    75% 0%,
+    100% 50%,
+    75% 100%,
+    25% 100%,
+    0% 50%
+  ); /* Use: https://bennettfeely.com/clippy/ */
+}
+
+.hex {
+  width: var(--hex-width);
+  height: var(--hex-height);
+
+  /* center the label inside the hex */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #111;
+  font-weight: 600;
+  font-size: 1rem;
+
+  &:not(:first-child) {
+    margin-top: calc(-1 * var(--border-size));
+  }
+}
+
+/* Used for aligning the grid */
+.hex:not(.fake-hex) {
+  position: relative;
+  background: rgb(255, 255, 255); /* Border color */
+
+  /* Pseudo element for the inner hex because borders don’t work on clipped elements */
+  &::before {
+    content: "";
+    position: absolute;
+    background: rgb(223, 223, 223); /* Hex color */
+    inset: var(--border-size);
+    z-index: 0; /* ensure it stays behind the text */
+  }
+  /* label sits above the pseudo element */
+  .hex-label {
+    position: relative;
+    z-index: 1;
+    pointer-events: none;
+  }
+}
+
+/* keep the fake placeholder invisible */
+.fake-hex {
+  background: transparent;
+}
+.fake-hex::before {
+  display: none;
+}
