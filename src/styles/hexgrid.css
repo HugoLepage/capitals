@@ -1,7 +1,10 @@
 :root {
-  --hex-width: 6rem;
-  --hex-height: 5rem;
-  --border-size: 0.5rem;
+  /* Responsive hex sizing: grows with viewport (vw) but clamps to sensible min/max values */
+  --hex-width: clamp(2.5rem, 20vw, 8rem);
+  /* Maintain original height/width ratio (5 / 6 = 0.833333) */
+  --hex-height: calc(var(--hex-width) * 0.833333);
+  /* Border scales with hex size so overlap and inset remain proportional */
+  --border-size: calc(var(--hex-width) * 0.083333); /* ~0.5rem when hex-width is 6rem */
 }
 
 .hex-grid-container {
@@ -10,14 +13,29 @@
   align-items: center;
   justify-content: center;
 
-  /* small padding so content doesn't touch edges on small screens */
-  padding: 2rem;
+
+  /* padding so content doesn't touch edges; let width be 100% so hex sizing (vw) can shrink */
+  padding: 2rem 0 0 0;
   box-sizing: border-box;
+  width: 100%;
+  max-width: 100vw;
+  /* Ensure the grid scales visually and remains crisp on many displays */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  transform: translateY(-10vh);
+  will-change: transform;
 }
 
 .hex-grid {
   display: flex;
   align-items: center;
+  /* Keep the honeycomb rows in a single structured layout so relative positions are preserved */
+  flex-wrap: nowrap;
+  justify-content: center;
+  /* allow the grid to shrink slightly if the container is tight */
+  max-width: 100%;
+  transform-origin: center;
 }
 
 .row:not(:first-child) {
@@ -48,7 +66,8 @@
 
   color: #111;
   font-weight: 600;
-  font-size: 1rem;
+  /* scale label with hex size but clamp for readability */
+  font-size: clamp(0.85rem, 6vw, 1.6rem);
 
   &:not(:first-child) {
     margin-top: calc(-1 * var(--border-size));
@@ -82,4 +101,27 @@
 }
 .fake-hex::before {
   display: none;
+}
+
+/* Small tweak for very narrow viewports to ensure the full grid remains visible */
+@media (max-width: 480px) {
+  :root {
+    --hex-width: clamp(1.8rem, 100vw, 20vw);
+    --hex-height: calc(var(--hex-width) * 0.833333);
+    --border-size: calc(var(--hex-width) * 0.083333);
+  }
+
+  .hex-grid-container {
+    padding: 1rem;
+    transform: translateY(-6vh); /* smaller offset on narrow screens */
+  }
+}
+
+/* Large viewport cap - don't let hexes get excessively large on very wide screens */
+@media (min-width: 1600px) {
+  :root {
+    --hex-width: clamp(2.5rem, 20vw, 8rem);
+    --hex-height: calc(var(--hex-width) * 0.833333);
+    --border-size: calc(var(--hex-width) * 0.083333);
+  }
 }
