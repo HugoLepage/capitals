@@ -23,7 +23,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  transform: translateY(-10vh);
+  transform: translateY(-2vh);
   will-change: transform;
 }
 

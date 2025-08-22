@@ -7,9 +7,35 @@ let idCounter = 0;
 
 <Layout>
 
-	<div style="text-align: center; margin-top: 8px; margin-bottom: 8px;">
-		<h1 class="title" style="font-family: Verdana, Geneva, sans-serif; font-weight: bold;">CAPITALS</h1>
-	</div>
+    <div style="text-align: center; margin-top: 8px; margin-bottom: 8px;">
+        <h1 class="title" style="font-family: Verdana, Geneva, sans-serif; font-weight: bold;">CAPITALS</h1>
+    </div>
+
+    <div class="main-area">
+        <div class="menu-container" aria-haspopup="true">
+            <button class="menu-button" aria-expanded="false" aria-controls="game-menu">Menu ▾</button>
+
+            <div class="dropdown" id="game-menu" role="menu" aria-label="Game options">
+                <div class="menu-category" role="group" aria-label="Play vs Human">
+                    <div class="menu-category-title">Play vs Human</div>
+                    <button class="menu-item" role="menuitem" type="button">New Game</button>
+                </div>
+
+                <div class="menu-category" role="group" aria-label="Play vs AI">
+                    <div class="menu-category-title">Play vs AI</div>
+                    <button class="menu-item" role="menuitem" type="button">Easy</button>
+                    <button class="menu-item" role="menuitem" type="button">Medium</button>
+                    <button class="menu-item" role="menuitem" type="button">Hard</button>
+                </div>
+
+				<div class="menu-category" role="group" aria-label="About">
+                    <div class="menu-category-title">About</div>
+                    <button class="menu-item" role="menuitem" type="button">How to Play</button>
+                </div>
+            </div>
+        </div>
+
+		
 
     <div class="hex-grid-container">
         <div class="hex-grid">
