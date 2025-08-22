@@ -64,6 +64,9 @@
   align-items: center;
   justify-content: center;
 
+  transition: transform 180ms cubic-bezier(.2,.9,.2,1), box-shadow 180ms ease;
+  transform-origin: center;
+
   color: #111;
   font-weight: 600;
   /* scale label with hex size but clamp for readability */
@@ -72,6 +75,13 @@
   &:not(:first-child) {
     margin-top: calc(-1 * var(--border-size));
   }
+}
+
+.hex:hover {
+  transform: scale(1.06);
+  z-index: 3;
+  box-shadow: 0 8px 18px rgba(16,24,40,0.12);
+  cursor: pointer;
 }
 
 /* Used for aligning the grid */
