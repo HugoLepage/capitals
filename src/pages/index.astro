@@ -5,11 +5,83 @@ const rows = [6, 7, 6, 7, 6, 7, 6]; // regular hex counts per row
 let idCounter = 0;
 ---
 
+
+
+<style>
+.page-flex {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+/* Right fixed-size scrollable text box — fixed so it doesn't affect layout */
+.right-panel {
+    position: fixed;
+    right: 24px;               /* distance from right edge of viewport */
+    top: 80px;                 /* adjust as needed to sit below header/title */
+    width: 260px;              /* fixed width */
+    height: 480px;             /* fixed height */
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow-y: auto;          /* scrollable */
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 8px;
+    box-sizing: border-box;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    font-size: 14px;
+    z-index: 1000;             /* stays above page content if overlapping */
+    pointer-events: auto;      /* remains interactive (scrollable) */
+}
+
+/* Optional header inside the panel */
+.panel-header {
+    font-weight: 600;
+    margin-bottom: 6px;
+    text-align: left;
+    color: #222;
+}
+
+/* Each line alternates: show either a left-justified blue word or a right-justified red word */
+.log-line {
+    padding: 6px 4px;
+    min-height: 22px;
+    display: block;
+}
+
+/* Left word (blue) */
+.log-line .blue {
+    color: #0b66ff;
+    text-align: left;
+    display: block;
+}
+
+/* Right word (red) */
+.log-line .red {
+    color: #e03b3b;
+    text-align: right;
+    display: block;
+}
+
+/* Main area keeps previous styling context */
+.main-area {
+    flex: 1 1 auto;
+}
+</style>
+
+
+
+
+
 <Layout>
 
-    <div style="text-align: center; margin-top: 8px; margin-bottom: 8px;">
+	<div style="text-align: center; margin-top: 8px; margin-bottom: 8px;">
         <h1 class="title" style="font-family: Verdana, Geneva, sans-serif; font-weight: bold;">CAPITALS</h1>
     </div>
+
+	    <div class="page-flex">
+
+
 
     <div class="main-area">
         <div class="menu-container" aria-haspopup="true">
@@ -55,4 +127,23 @@ let idCounter = 0;
         </div>
     </div>
 
+
+        <!-- Panel moved here and made fixed so it doesn't affect page layout -->
+        <aside class="right-panel" role="complementary" aria-label="Activity log">
+            <div class="panel-header">Activity</div>
+            <div class="panel-body">
+                {Array.from({ length: 60 }).map((_, i) => {
+                    const isLeft = i % 2 === 0; // alternate lines
+                    const word = `Word ${i + 1}`;
+                    return (
+                        <div class="log-line" aria-hidden="false">
+                            {isLeft ? <span class="blue">{word}</span> : <span class="red">{word}</span>}
+                        </div>
+                    );
+                })}
+            </div>
+        </aside>
+
+
+	</div>
 </Layout>
