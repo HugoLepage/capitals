@@ -1,0 +1,22 @@
+---
+const rows = [6, 7, 6, 7, 6, 7, 6]; // regular hex counts per row
+let idCounter = 0;
+---
+
+<div class="hex-grid-container">
+    <div class="hex-grid">
+        {rows.map((count) => (
+            <div class="row">
+                <div class="hex fake-hex"></div>
+                {Array.from({ length: count }).map(() => {
+                    const hexId = idCounter++;
+                    return (
+                        <div class="hex" id={`hex-${hexId}`}>
+                            <span class="hex-label">{hexId}</span>
+                        </div>
+                    );
+                })}
+            </div>
+        ))}
+    </div>
+</div>
