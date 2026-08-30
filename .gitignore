@@ -42,3 +42,6 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# local Claude Code config (machine-specific dev-server launch paths)
+.claude/
