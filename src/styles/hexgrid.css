@@ -132,17 +132,27 @@
 /* --- tile kinds ---------------------------------------------------------- */
 
 .hex.is-blank {
-  --face: #f4cf6e;
-  --extrude: #d8a944;
+  --face: #f8f3e6;
+  --extrude: #c9bfa5;
 }
 
 .hex.is-letter {
-  --face: #f2c355;
-  --extrude: #cd9630;
+  --face: #f8f3e6;
+  --extrude: #c9bfa5;
 }
 
 .hex.is-letter .hex-face {
   cursor: pointer;
+}
+
+.hex.is-base.p0 {
+  --face: #e56052;
+  --extrude: #ab372d;
+}
+
+.hex.is-base.p1 {
+  --face: #6285e0;
+  --extrude: #3854a8;
 }
 
 .hex.is-base {
@@ -150,8 +160,10 @@
   --extrude: #c9bfa5;
 }
 
-.hex.is-base.p0 .hex-content { color: #d94a3d; }
-.hex.is-base.p1 .hex-content { color: #4a74d8; }
+/* .hex.is-base.p0 .hex-content { color: #d94a3d; }
+.hex.is-base.p1 .hex-content { color: #4a74d8; } */
+
+.hex.is-base .hex-content { color: #504040; }
 
 .hex.is-territory.p0 {
   --face: #e56052;
@@ -164,7 +176,7 @@
 }
 
 /* selected letters preview the capturing player's colour */
-.hex.is-selected.sel-p0 {
+/* .hex.is-selected.sel-p0 {
   --face: #ec7d70;
   --extrude: #b54438;
 }
@@ -172,7 +184,14 @@
 .hex.is-selected.sel-p1 {
   --face: #81a0ea;
   --extrude: #4763b8;
+} */
+
+.hex.is-selected {
+  --face: #777777;
+  --extrude: #5b5b5b;
 }
+
+
 
 .hex.is-selected .hex-letter {
   color: #fff;
