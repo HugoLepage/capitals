@@ -475,7 +475,7 @@ function onKeyDown(e) {
 
 // --- Setup screen ----------------------------------------------------------
 
-let chosenMode = 'local';
+let chosenMode = 'bot';
 
 function bindUi() {
   els.grid.addEventListener('click', onTileClick);
@@ -549,6 +549,6 @@ function loadWords() {
 export function initGame() {
   cacheDom();
   bindUi();
-  setMode('local');
+  setMode('bot');
   loadWords();
 }

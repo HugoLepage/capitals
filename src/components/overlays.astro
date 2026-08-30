@@ -5,19 +5,19 @@
     <p class="modal-tag">Spell words. Steal land. Storm the castle.</p>
 
     <div class="mode-row">
-      <button class="mode-card selected" id="btn-mode-local" type="button">
+      <button class="mode-card" id="btn-mode-local" type="button">
         <span class="mode-icon">👥</span>
         <span class="mode-name">Local play</span>
         <span class="mode-desc">Two players, one screen</span>
       </button>
-      <button class="mode-card" id="btn-mode-bot" type="button">
+      <button class="mode-card selected" id="btn-mode-bot" type="button">
         <span class="mode-icon">🤖</span>
         <span class="mode-name">Vs bot</span>
         <span class="mode-desc">Battle the machine</span>
       </button>
     </div>
 
-    <div class="difficulty-row hidden" id="difficulty-row">
+    <div class="difficulty-row" id="difficulty-row">
       <label for="difficulty">Bot difficulty: <b id="difficulty-value">5</b></label>
       <input type="range" min="1" max="10" step="1" value="5" id="difficulty" />
       <div class="difficulty-scale"><span>1 · very easy</span><span>10 · very hard</span></div>
