@@ -2,4 +2,8 @@
 import { defineConfig } from 'astro/config';
 
 // https://astro.build/config
-export default defineConfig({});
+// Deployed to GitHub Pages at https://hugolepage.github.io/capitals/
+export default defineConfig({
+  site: 'https://hugolepage.github.io',
+  base: '/capitals',
+});
