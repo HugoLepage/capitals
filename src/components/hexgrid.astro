@@ -1,8 +1,60 @@
 ---
 import { TILES } from '../scripts/board.js';
+
+// Rounded flat-top hexagon path in a 100 x 86.6 viewBox.
+const W = 100;
+const H = 86.6025;
+const FACE_SCALE = 0.885; // inset from the cell box — the breathing room between tiles
+const CORNER_R = 11;
+
+function roundedHexPath(scale, r) {
+  const cx = W / 2, cy = H / 2;
+  const pts = [
+    [W * 0.25, 0], [W * 0.75, 0], [W, H / 2],
+    [W * 0.75, H], [W * 0.25, H], [0, H / 2],
+  ].map(([x, y]) => [cx + (x - cx) * scale, cy + (y - cy) * scale]);
+
+  const fmt = ([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`;
+  let d = '';
+  for (let i = 0; i < 6; i++) {
+    const p = pts[i];
+    const prev = pts[(i + 5) % 6];
+    const next = pts[(i + 1) % 6];
+    const inV = norm([p[0] - prev[0], p[1] - prev[1]]);
+    const outV = norm([next[0] - p[0], next[1] - p[1]]);
+    const a = [p[0] - inV[0] * r, p[1] - inV[1] * r];
+    const b = [p[0] + outV[0] * r, p[1] + outV[1] * r];
+    d += (i === 0 ? `M${fmt(a)}` : `L${fmt(a)}`) + `Q${fmt(p)} ${fmt(b)}`;
+  }
+  return d + 'Z';
+}
+
+function norm([x, y]) {
+  const len = Math.hypot(x, y);
+  return [x / len, y / len];
+}
+
+const hexPath = roundedHexPath(FACE_SCALE, CORNER_R);
 ---
 
 <div class="board-wrap">
+  <!-- shared gradient that fakes the soft, rounded surface of every tile -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="tile-sheen" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffffff" stop-opacity="0.34" />
+        <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.08" />
+        <stop offset="0.78" stop-color="#000000" stop-opacity="0.02" />
+        <stop offset="1" stop-color="#000000" stop-opacity="0.08" />
+      </linearGradient>
+      <linearGradient id="tile-rim" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffffff" stop-opacity="0.5" />
+        <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.06" />
+        <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+      </linearGradient>
+    </defs>
+  </svg>
+
   <div class="hex-grid" id="hex-grid">
     {TILES.map((t) => (
       <button
@@ -12,8 +64,13 @@ import { TILES } from '../scripts/board.js';
         style={`--gx:${t.col * 0.75}; --gy:${t.y};`}
         aria-label="Hidden tile"
       >
-        <span class="hex-shadow"></span>
-        <span class="hex-face"></span>
+        <svg class="hex-svg" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+          <path class="hex-extrude" d={hexPath} />
+          <g class="hex-top">
+            <path class="hex-face" d={hexPath} />
+            <path class="hex-sheen" d={hexPath} />
+          </g>
+        </svg>
         <span class="hex-content"></span>
         <span class="hex-badge"></span>
       </button>

@@ -1,4 +1,6 @@
-/* Hex board: flat-top hexes, absolutely positioned in hex units via --gx/--gy. */
+/* Hex board: flat-top rounded hexes (SVG), absolutely positioned in hex units
+   via --gx/--gy. Each tile is an <svg> with an extrude path (3D depth), a face
+   path (flat colour), and a shared sheen gradient that fakes soft rounding. */
 
 :root {
   --hex-w: clamp(42px, min(12.5vw, 10.3vh), 92px);
@@ -34,36 +36,48 @@
   cursor: default;
   font: inherit;
   transform-style: preserve-3d;
-  /* Buttons overlap as rectangles; only the clipped face takes pointer hits
-     so taps land on the hexagon actually under the finger. */
+  /* Buttons overlap as rectangles; only the painted face path takes pointer
+     hits so taps land on the hexagon actually under the finger. */
   pointer-events: none;
   touch-action: manipulation;
 }
 
-.hex-face {
-  pointer-events: auto;
-}
-
-.hex-shadow {
-  pointer-events: none;
-}
-
-.hex-shadow,
-.hex-face {
+.hex-svg {
   position: absolute;
-  inset: 3%;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+  /* soft ambient shadow under the whole tile */
+  filter: drop-shadow(0 1.5px 1px rgba(122, 87, 29, 0.18));
 }
 
-/* the dark "extruded" side that gives the tile its 3D depth */
-.hex-shadow {
-  background: var(--extrude);
-  transform: translateY(6.5%);
+/* the darker "extruded" rim that gives the tile its 3D depth */
+.hex-extrude {
+  fill: var(--extrude);
+  transform: translateY(3.8px); /* px = viewBox units, scales with the tile */
+  transition: transform 140ms ease;
+}
+
+.hex-top {
+  transition: transform 140ms ease;
 }
 
 .hex-face {
-  background: linear-gradient(180deg, var(--face-top) 0%, var(--face-bot) 100%);
-  transition: transform 140ms ease;
+  fill: var(--face);
+  pointer-events: auto;
+  /* thin rim fading out toward the bottom — light catching a soft bevel */
+  stroke: url(#tile-rim);
+  stroke-width: 1.6;
+}
+
+/* light-from-above gradient overlay: soft highlight at the top, gentle
+   shading at the bottom — makes the surface read as pillowy */
+.hex-sheen {
+  fill: url(#tile-sheen);
+  pointer-events: none;
 }
 
 .hex-content {
@@ -118,14 +132,12 @@
 /* --- tile kinds ---------------------------------------------------------- */
 
 .hex.is-blank {
-  --face-top: #f7d883;
-  --face-bot: #efc75e;
+  --face: #f4cf6e;
   --extrude: #d8a944;
 }
 
 .hex.is-letter {
-  --face-top: #f9d772;
-  --face-bot: #efbc48;
+  --face: #f2c355;
   --extrude: #cd9630;
 }
 
@@ -134,8 +146,7 @@
 }
 
 .hex.is-base {
-  --face-top: #fffdf6;
-  --face-bot: #eee7d6;
+  --face: #f8f3e6;
   --extrude: #c9bfa5;
 }
 
@@ -143,27 +154,23 @@
 .hex.is-base.p1 .hex-content { color: #4a74d8; }
 
 .hex.is-territory.p0 {
-  --face-top: #ee7d6f;
-  --face-bot: #dd5245;
+  --face: #e56052;
   --extrude: #ab372d;
 }
 
 .hex.is-territory.p1 {
-  --face-top: #7ea0ef;
-  --face-bot: #5679dd;
+  --face: #6285e0;
   --extrude: #3854a8;
 }
 
 /* selected letters preview the capturing player's colour */
 .hex.is-selected.sel-p0 {
-  --face-top: #f29488;
-  --face-bot: #e5685c;
+  --face: #ec7d70;
   --extrude: #b54438;
 }
 
 .hex.is-selected.sel-p1 {
-  --face-top: #97b2f2;
-  --face-bot: #6c8ce5;
+  --face: #81a0ea;
   --extrude: #4763b8;
 }
 
@@ -175,12 +182,14 @@
 /* --- interaction --------------------------------------------------------- */
 
 @media (hover: hover) {
-  .hex-grid:not(.locked) .hex.is-letter:hover .hex-face,
-  .hex-grid:not(.locked) .hex.is-letter:hover .hex-content {
-    transform: translateY(-5%);
+  .hex-grid:not(.locked) .hex.is-letter:hover .hex-top {
+    transform: translateY(-2.6px);
   }
-  .hex-grid:not(.locked) .hex.is-letter:hover .hex-shadow {
-    transform: translateY(9%);
+  .hex-grid:not(.locked) .hex.is-letter:hover .hex-content {
+    transform: translateY(-3%);
+  }
+  .hex-grid:not(.locked) .hex.is-letter:hover .hex-extrude {
+    transform: translateY(5.6px);
   }
 }
 
