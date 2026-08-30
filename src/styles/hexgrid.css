@@ -1,137 +1,246 @@
+/* Hex board: flat-top hexes, absolutely positioned in hex units via --gx/--gy. */
+
 :root {
-  /* Responsive hex sizing: grows with viewport (vw) but clamps to sensible min/max values */
-  --hex-width: clamp(2.5rem, 20vw, 8rem);
-  /* Maintain original height/width ratio (5 / 6 = 0.833333) */
-  --hex-height: calc(var(--hex-width) * 0.833333);
-  /* Border scales with hex size so overlap and inset remain proportional */
-  --border-size: calc(var(--hex-width) * 0.083333); /* ~0.5rem when hex-width is 6rem */
+  --hex-w: clamp(42px, min(12.5vw, 10.3vh), 92px);
+  --hex-h: calc(var(--hex-w) * 0.8660254);
 }
 
-.hex-grid-container {
-  /* center the grid in the viewport */
+.board-wrap {
   display: flex;
-  align-items: center;
   justify-content: center;
-
-
-  /* padding so content doesn't touch edges; let width be 100% so hex sizing (vw) can shrink */
-  padding: 2rem 0 0 0;
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 100vw;
-  /* Ensure the grid scales visually and remains crisp on many displays */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  transform: translateY(-2vh);
-  will-change: transform;
+  padding: 6px 0 10px;
 }
 
 .hex-grid {
-  display: flex;
-  align-items: center;
-  /* Keep the honeycomb rows in a single structured layout so relative positions are preserved */
-  flex-wrap: nowrap;
-  justify-content: center;
-  /* allow the grid to shrink slightly if the container is tight */
-  max-width: 100%;
-  transform-origin: center;
-}
-
-.row:not(:first-child) {
-  /* Hex width * 25% (clipped part) - border for overlap */
-  margin-left: calc(-0.25 * var(--hex-width) - var(--border-size));
-}
-
-.hex,
-.hex::before {
-  clip-path: polygon(
-    25% 0%,
-    75% 0%,
-    100% 50%,
-    75% 100%,
-    25% 100%,
-    0% 50%
-  ); /* Use: https://bennettfeely.com/clippy/ */
+  position: relative;
+  width: calc(var(--hex-w) * 5.5);
+  height: calc(var(--hex-h) * 7);
+  perspective: 1100px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .hex {
-  width: var(--hex-width);
-  height: var(--hex-height);
+  position: absolute;
+  left: calc(var(--gx) * var(--hex-w));
+  top: calc(var(--gy) * var(--hex-h));
+  width: var(--hex-w);
+  height: var(--hex-h);
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: default;
+  font: inherit;
+  transform-style: preserve-3d;
+  /* Buttons overlap as rectangles; only the clipped face takes pointer hits
+     so taps land on the hexagon actually under the finger. */
+  pointer-events: none;
+  touch-action: manipulation;
+}
 
-  /* center the label inside the hex */
+.hex-face {
+  pointer-events: auto;
+}
+
+.hex-shadow {
+  pointer-events: none;
+}
+
+.hex-shadow,
+.hex-face {
+  position: absolute;
+  inset: 3%;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+/* the dark "extruded" side that gives the tile its 3D depth */
+.hex-shadow {
+  background: var(--extrude);
+  transform: translateY(6.5%);
+}
+
+.hex-face {
+  background: linear-gradient(180deg, var(--face-top) 0%, var(--face-bot) 100%);
+  transition: transform 140ms ease;
+}
+
+.hex-content {
+  position: absolute;
+  inset: 3%;
   display: flex;
   align-items: center;
   justify-content: center;
-
-  transition: transform 180ms cubic-bezier(.2,.9,.2,1), box-shadow 180ms ease;
-  transform-origin: center;
-
-  color: #111;
-  font-weight: 600;
-  /* scale label with hex size but clamp for readability */
-  font-size: clamp(0.85rem, 6vw, 1.6rem);
-
-  &:not(:first-child) {
-    margin-top: calc(-1 * var(--border-size));
-  }
+  z-index: 2;
+  pointer-events: none;
+  transition: transform 140ms ease;
 }
 
-.hex:hover {
-  transform: scale(1.06);
+.hex-letter {
+  font-size: calc(var(--hex-w) * 0.4);
+  font-weight: 800;
+  color: #7a571d;
+  text-shadow: 0 2px 2px rgba(122, 87, 29, 0.18);
+  transform: translateY(-4%);
+}
+
+.castle {
+  width: 48%;
+  height: auto;
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.18));
+}
+
+/* selection order badge */
+.hex-badge {
+  position: absolute;
+  top: 0;
+  right: 12%;
   z-index: 3;
-  box-shadow: 0 8px 18px rgba(16,24,40,0.12);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(var(--hex-w) * 0.26);
+  height: calc(var(--hex-w) * 0.26);
+  border-radius: 999px;
+  background: #fffdf4;
+  color: #6b4d16;
+  font-size: calc(var(--hex-w) * 0.16);
+  font-weight: 800;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.hex.is-selected .hex-badge {
+  display: flex;
+}
+
+/* --- tile kinds ---------------------------------------------------------- */
+
+.hex.is-blank {
+  --face-top: #f7d883;
+  --face-bot: #efc75e;
+  --extrude: #d8a944;
+}
+
+.hex.is-letter {
+  --face-top: #f9d772;
+  --face-bot: #efbc48;
+  --extrude: #cd9630;
+}
+
+.hex.is-letter .hex-face {
   cursor: pointer;
 }
 
-/* Used for aligning the grid */
-.hex:not(.fake-hex) {
-  position: relative;
-  background: rgb(255, 255, 255); /* Border color */
+.hex.is-base {
+  --face-top: #fffdf6;
+  --face-bot: #eee7d6;
+  --extrude: #c9bfa5;
+}
 
-  /* Pseudo element for the inner hex because borders don’t work on clipped elements */
-  &::before {
-    content: "";
-    position: absolute;
-    background: rgb(223, 223, 223); /* Hex color */
-    inset: var(--border-size);
-    z-index: 0; /* ensure it stays behind the text */
+.hex.is-base.p0 .hex-content { color: #d94a3d; }
+.hex.is-base.p1 .hex-content { color: #4a74d8; }
+
+.hex.is-territory.p0 {
+  --face-top: #ee7d6f;
+  --face-bot: #dd5245;
+  --extrude: #ab372d;
+}
+
+.hex.is-territory.p1 {
+  --face-top: #7ea0ef;
+  --face-bot: #5679dd;
+  --extrude: #3854a8;
+}
+
+/* selected letters preview the capturing player's colour */
+.hex.is-selected.sel-p0 {
+  --face-top: #f29488;
+  --face-bot: #e5685c;
+  --extrude: #b54438;
+}
+
+.hex.is-selected.sel-p1 {
+  --face-top: #97b2f2;
+  --face-bot: #6c8ce5;
+  --extrude: #4763b8;
+}
+
+.hex.is-selected .hex-letter {
+  color: #fff;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.22);
+}
+
+/* --- interaction --------------------------------------------------------- */
+
+@media (hover: hover) {
+  .hex-grid:not(.locked) .hex.is-letter:hover .hex-face,
+  .hex-grid:not(.locked) .hex.is-letter:hover .hex-content {
+    transform: translateY(-5%);
   }
-  /* label sits above the pseudo element */
-  .hex-label {
-    position: relative;
-    z-index: 1;
-    pointer-events: none;
+  .hex-grid:not(.locked) .hex.is-letter:hover .hex-shadow {
+    transform: translateY(9%);
   }
 }
 
-/* keep the fake placeholder invisible */
-.fake-hex {
-  background: transparent;
-}
-.fake-hex::before {
-  display: none;
+.hex-grid.locked .hex,
+.hex-grid.locked .hex-face {
+  cursor: default;
+  pointer-events: none;
 }
 
-/* Small tweak for very narrow viewports to ensure the full grid remains visible */
-@media (max-width: 480px) {
-  :root {
-    --hex-width: clamp(1.8rem, 100vw, 20vw);
-    --hex-height: calc(var(--hex-width) * 0.833333);
-    --border-size: calc(var(--hex-width) * 0.083333);
+/* --- animations ---------------------------------------------------------- */
+
+.hex.flipping {
+  animation: hex-flip 560ms cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
+  z-index: 5;
+}
+
+@keyframes hex-flip {
+  0%   { transform: rotateX(0deg) scale(1); }
+  50%  { transform: rotateX(90deg) scale(1.14); }
+  100% { transform: rotateX(0deg) scale(1); }
+}
+
+.hex.dealing {
+  animation: hex-deal 440ms cubic-bezier(0.3, 1.4, 0.5, 1) backwards;
+}
+
+@keyframes hex-deal {
+  from {
+    transform: rotateX(-85deg) scale(0.4);
+    opacity: 0;
   }
-
-  .hex-grid-container {
-    padding: 1rem;
-    transform: translateY(-6vh); /* smaller offset on narrow screens */
-  }
 }
 
-/* Large viewport cap - don't let hexes get excessively large on very wide screens */
-@media (min-width: 1600px) {
-  :root {
-    --hex-width: clamp(2.5rem, 20vw, 8rem);
-    --hex-height: calc(var(--hex-width) * 0.833333);
-    --border-size: calc(var(--hex-width) * 0.083333);
+/* invalid tap feedback */
+.hex.nope {
+  animation: hex-nope 260ms ease;
+}
+
+@keyframes hex-nope {
+  25% { transform: translateX(-4%); }
+  75% { transform: translateX(4%); }
+}
+
+.board-wrap.shake {
+  animation: board-shake 550ms ease;
+}
+
+@keyframes board-shake {
+  15% { transform: translate(-5px, 2px) rotate(-0.5deg); }
+  35% { transform: translate(4px, -2px) rotate(0.4deg); }
+  55% { transform: translate(-3px, 1px); }
+  75% { transform: translate(2px, -1px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hex.flipping,
+  .hex.dealing,
+  .hex.nope,
+  .board-wrap.shake {
+    animation-duration: 1ms;
+    animation-delay: 0ms !important;
   }
 }

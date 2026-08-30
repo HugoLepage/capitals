@@ -1,21 +1,43 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Menu from '../components/menu.astro';
 import HexGrid from '../components/hexgrid.astro';
 import History from '../components/history.astro';
+import Overlays from '../components/overlays.astro';
 ---
 
 <Layout>
+  <div class="app">
+    <header class="topbar">
+      <h1 class="logo">CAPITALS</h1>
+      <div class="topbar-actions">
+        <button class="btn ghost small" id="btn-help" type="button">How to play</button>
+        <button class="btn primary small" id="btn-new-game" type="button">New game</button>
+      </div>
+    </header>
 
-	<div style="text-align: center; margin-top: 8px; margin-bottom: 8px;">
-        <h1 class="title" style="font-family: Verdana, Geneva, sans-serif; font-weight: bold;">CAPITALS</h1>
-    </div>
+    <main class="game-shell">
+      <section class="board-area">
+        <div class="turn-banner" id="turn-banner" aria-live="polite"></div>
+        <HexGrid />
+        <div class="word-bar">
+          <div class="word-display empty" id="word-display">Tap letters to spell a word</div>
+          <div class="word-actions">
+            <span class="word-status" id="word-status"></span>
+            <button class="btn ghost small" id="btn-clear" type="button" disabled>Clear</button>
+            <button class="btn primary small" id="btn-play" type="button" disabled>Play word</button>
+          </div>
+        </div>
+      </section>
 
-	<Menu />
+      <History />
+    </main>
+  </div>
 
-	<HexGrid />
-
-	<History />
-
+  <Overlays />
+  <div class="toast" id="toast" role="status"></div>
 </Layout>
 
+<script>
+  import { initGame } from '../scripts/game.js';
+  initGame();
+</script>

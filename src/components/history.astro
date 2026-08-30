@@ -1,14 +1,9 @@
-<aside class="right-panel" role="complementary" aria-label="Activity log">
-    <div class="panel-header">Activity</div>
-    <div class="panel-body">
-        {Array.from({ length: 60 }).map((_, i) => {
-            const isLeft = i % 2 === 0; // alternate lines
-            const word = `Word ${i + 1}`;
-            return (
-                <div class="log-line" aria-hidden="false">
-                    {isLeft ? <span class="blue">{word}</span> : <span class="red">{word}</span>}
-                </div>
-            );
-        })}
-    </div>
+<aside class="history-panel" aria-label="Words played">
+  <div class="history-header">
+    <span class="dot p0"></span>
+    <span>Words played</span>
+    <span class="dot p1"></span>
+  </div>
+  <ol class="history-list" id="history-list"></ol>
+  <div class="history-empty" id="history-empty">No words yet — spell the first one!</div>
 </aside>
