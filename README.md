@@ -1,48 +1,33 @@
-# capitals
-Capitals Word Game
+# Capitals
 
+A word game of hexes and conquest, built with [Astro](https://astro.build) and vanilla
+JavaScript. Fully static — hosted on GitHub Pages.
+
+## How to play
+
+- **Spell words** — tap any letter tiles on the board to make a valid word (3+ letters,
+  one word per turn).
+- **Capture tiles** — chains of played letters that touch your territory are captured.
+  Blank tiles next to captured tiles are revealed; opponent tiles next to captured tiles
+  turn back into letter tiles.
+- **Go for the base** — destroying your opponent's base earns an extra turn. If they
+  haven't lost, their base respawns on a random tile of their territory afterwards.
+- **Wipe out your opponent to win.**
+
+Two modes: local two-player on one screen, or play against a bot with difficulty 1–10.
+Letters are drawn from the Scrabble letter distribution, and the board is guaranteed to
+always contain at least one spellable word.
+
+The dictionary is the public-domain [ENABLE](https://github.com/dolph/dictionary) word list
+(`public/words.txt`).
+
+## Development
 
 ```sh
-npm create astro@latest -- --template basics
+npm install
+npm run dev      # dev server at http://localhost:4321/capitals
+npm run build    # static build into dist/
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
-```
-
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Pushes to `main` deploy automatically to GitHub Pages via `.github/workflows/deploy.yml`
+(set the repository's Pages source to "GitHub Actions").
