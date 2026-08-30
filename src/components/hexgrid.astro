@@ -1,22 +1,22 @@
 ---
-const rows = [6, 7, 6, 7, 6, 7, 6]; // regular hex counts per row
-let idCounter = 0;
+import { TILES } from '../scripts/board.js';
 ---
 
-<div class="hex-grid-container">
-    <div class="hex-grid">
-        {rows.map((count) => (
-            <div class="row">
-                <div class="hex fake-hex"></div>
-                {Array.from({ length: count }).map(() => {
-                    const hexId = idCounter++;
-                    return (
-                        <div class="hex" id={`hex-${hexId}`}>
-                            <span class="hex-label">{hexId}</span>
-                        </div>
-                    );
-                })}
-            </div>
-        ))}
-    </div>
+<div class="board-wrap">
+  <div class="hex-grid" id="hex-grid">
+    {TILES.map((t) => (
+      <button
+        class="hex is-blank"
+        id={`hex-${t.id}`}
+        data-id={t.id}
+        style={`--gx:${t.col * 0.75}; --gy:${t.y};`}
+        aria-label="Hidden tile"
+      >
+        <span class="hex-shadow"></span>
+        <span class="hex-face"></span>
+        <span class="hex-content"></span>
+        <span class="hex-badge"></span>
+      </button>
+    ))}
+  </div>
 </div>
