@@ -593,7 +593,7 @@ function bindLangPicker() {
 
 // --- Setup screen ----------------------------------------------------------
 
-let chosenMode = 'local';
+let chosenMode = 'bot';
 
 function bindUi() {
   els.grid.addEventListener('click', onTileClick);
@@ -682,6 +682,6 @@ export function initGame() {
   applyStaticStrings();
   renderLangPicker();
   bindUi();
-  setMode('local');
+  setMode('bot');
   loadWords();
 }
