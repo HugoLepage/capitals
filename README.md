@@ -15,11 +15,28 @@ JavaScript. Fully static — hosted on GitHub Pages.
 - **Wipe out your opponent to win.**
 
 Two modes: local two-player on one screen, or play against a bot with difficulty 1–10.
-Letters are drawn from the Scrabble letter distribution, and the board is guaranteed to
-always contain at least one spellable word.
+The board is guaranteed to always contain at least one spellable word.
 
-The dictionary is the public-domain [ENABLE](https://github.com/dolph/dictionary) word list
-(`public/words.txt`).
+## Languages
+
+The flag button in the top bar switches between English, French and Italian. The choice
+is remembered in `localStorage`, and on a first visit the browser's own languages pick
+the starting one. Because the tiles and the words on the board belong to a single
+language, switching deals a fresh board.
+
+Each language brings its own word list and its own tile distribution — the real Scrabble
+one for that language, blanks excluded (English 98 tiles, French 100, Italian 118, which
+has no J/K/W/X/Y at all). Both live together in `src/scripts/i18n.js`, alongside the
+translated interface copy.
+
+| Language | Word list | Source |
+| --- | --- | --- |
+| English | `public/words_en_Collins_Scrabble_Words_2019.txt` | Collins Scrabble Words 2019 |
+| French | `public/words_fr_ODS8.txt` | ODS 8 |
+| Italian | `public/words_it_sigmasaur.txt` | sigmasaur Italian word list |
+
+The loader drops anything longer than 12 letters — no board can offer more — which keeps
+the Italian list, a full inflected-forms dump, down to a size a browser can hold.
 
 ## Development
 

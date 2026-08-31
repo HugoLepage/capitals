@@ -4,10 +4,15 @@ import { TILES } from './board.js';
 import { loadDictionary, countsOf } from './dictionary.js';
 import { newState, resolveMove, advanceTurn, ensurePlayable } from './rules.js';
 import { chooseBotMove } from './bot.js';
+import {
+  LANGUAGES, applyStaticStrings, currentLanguage, detectLang, getLang, setLang, t,
+} from './i18n.js';
 
-const WORDS_URL =
-  (import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/') +
-  'words.txt';
+const BASE = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : import.meta.env.BASE_URL + '/';
+
+const wordsUrl = (lang) => BASE + lang.words;
 
 const FLIP_MS = 560;
 const FLIP_HALF = 280;
@@ -23,6 +28,7 @@ let selection = [];
 let busy = false;
 let moveCount = 0;
 let gen = 0; // incremented on every new game; async flows bail if it changed
+let loadingWords = false;
 
 // --- DOM handles -----------------------------------------------------------
 
@@ -60,6 +66,9 @@ function cacheDom() {
     btnChangeMode: $('btn-change-mode'),
     btnNewGame: $('btn-new-game'),
     btnHelp: $('btn-help'),
+    langPicker: $('lang-picker'),
+    btnLang: $('btn-lang'),
+    langMenu: $('lang-menu'),
   };
   tileEls = TILES.map((t) => $(`hex-${t.id}`));
 }
@@ -69,13 +78,17 @@ function cacheDom() {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function playerName(p) {
-  if (state.mode === 'bot') return p === 0 ? 'You' : `Bot (level ${state.botLevel})`;
-  return p === 0 ? 'Red' : 'Blue';
+  if (state.mode === 'bot') return p === 0 ? t('player.you') : t('player.bot', state.botLevel);
+  return p === 0 ? t('player.red') : t('player.blue');
 }
 
+// Tiles keep their colour identity even in bot mode, where the players are
+// named "You" and "Bot" rather than Red and Blue.
+const colorName = (p) => (p === 0 ? t('player.red') : t('player.blue'));
+
 function turnLabel(p) {
-  if (state.mode === 'bot') return p === 0 ? 'Your turn' : 'Bot is thinking…';
-  return p === 0 ? "Red's turn" : "Blue's turn";
+  if (state.mode === 'bot') return p === 0 ? t('turn.yours') : t('turn.botThinking');
+  return p === 0 ? t('turn.red') : t('turn.blue');
 }
 
 let toastTimer = null;
@@ -92,18 +105,18 @@ function renderTile(tile) {
   const el = tileEls[tile.id];
   const selIdx = selection.indexOf(tile.id);
   let cls = 'hex';
-  let label = 'Hidden tile';
+  let label = t('tile.hidden');
   if (tile.kind === 'blank') {
     cls += ' is-blank';
   } else if (tile.kind === 'letter') {
     cls += ' is-letter';
-    label = `Letter ${tile.letter}`;
+    label = t('tile.letter', tile.letter);
   } else if (tile.kind === 'territory') {
     cls += ` is-territory p${tile.owner}`;
-    label = `${tile.owner === 0 ? 'Red' : 'Blue'} territory`;
+    label = t('tile.territory', colorName(tile.owner));
   } else {
     cls += ` is-base p${tile.owner}`;
-    label = `${tile.owner === 0 ? 'Red' : 'Blue'} base`;
+    label = t('tile.base', colorName(tile.owner));
   }
   if (selIdx >= 0) cls += ` is-selected sel-p${state.currentPlayer}`;
   if (el.classList.contains('flipping')) cls += ' flipping';
@@ -138,12 +151,12 @@ function countOwned(p) {
 function updateTurnBanner(botThinking = false) {
   let label;
   if (state.winner !== null) {
-    label = state.winner === -1 ? "It's a draw" :
+    label = state.winner === -1 ? t('turn.draw') :
       state.mode === 'bot'
-        ? (state.winner === 0 ? 'You win! 🏆' : 'The bot wins')
-        : `${playerName(state.winner)} wins! 🏆`;
+        ? (state.winner === 0 ? t('turn.youWin') : t('turn.botWins'))
+        : t('turn.wins', playerName(state.winner));
   } else {
-    label = botThinking ? 'Bot is thinking…' : turnLabel(state.currentPlayer);
+    label = botThinking ? t('turn.botThinking') : turnLabel(state.currentPlayer);
   }
   els.banner.innerHTML =
     `<span class="dot p0"></span><span class="score">${countOwned(0)}</span>` +
@@ -158,7 +171,7 @@ function updateWordBar() {
     els.wordDisplay.textContent = word;
     els.wordDisplay.classList.remove('empty');
   } else {
-    els.wordDisplay.textContent = 'Tap letters to spell a word';
+    els.wordDisplay.textContent = t('word.prompt');
     els.wordDisplay.classList.add('empty');
   }
   const valid = word.length >= 3 && dict && dict.isWord(word);
@@ -166,9 +179,9 @@ function updateWordBar() {
   els.btnClear.disabled = word.length === 0 || busy;
   let status = '', statusCls = 'word-status';
   if (word.length > 0 && word.length < 3) {
-    status = 'at least 3 letters';
+    status = t('word.tooShort');
   } else if (word.length >= 3) {
-    status = valid ? 'valid word ✓' : 'not a word';
+    status = valid ? t('word.valid') : t('word.invalid');
     statusCls += valid ? ' ok' : ' bad';
   }
   els.wordStatus.textContent = status;
@@ -253,14 +266,17 @@ async function passTurn(g) {
   if (adv.respawned !== null) {
     await flipTile(adv.respawned, 150);
     if (g !== gen) return;
-    toast(`🏰 ${playerName(state.currentPlayer)}'s base rose again on a new tile`);
+    toast(t('toast.respawn', playerName(state.currentPlayer)));
   }
 }
 
 async function handleNoMoves(g) {
   let passes = 0;
   while (state.winner === null && !canCurrentPlayerMove()) {
-    toast(`${playerName(state.currentPlayer)} ${state.mode === 'bot' && state.currentPlayer === 0 ? 'have' : 'has'} no possible words — turn passed`);
+    const name = playerName(state.currentPlayer);
+    // "You have" vs "the bot has" — some languages inflect the verb too.
+    const secondPerson = state.mode === 'bot' && state.currentPlayer === 0;
+    toast(secondPerson ? t('toast.noWordsYou', name) : t('toast.noWords', name));
     await sleep(1000);
     if (g !== gen) return;
     await passTurn(g);
@@ -289,14 +305,14 @@ async function playMove(tileIds) {
   if (g !== gen) return;
 
   if (res.baseDestroyed && res.winner === null) {
-    toast(`💥 ${playerName(player)} destroyed ${playerName(1 - player)}'s base — extra turn!`);
+    toast(t('toast.baseDown', playerName(player), playerName(1 - player)));
   }
 
   const adv = advanceTurn(state, res);
   if (adv.respawned !== null) {
     await flipTile(adv.respawned, 250);
     if (g !== gen) return;
-    toast(`🏰 ${playerName(state.currentPlayer)}'s base rose again on a new tile`);
+    toast(t('toast.respawn', playerName(state.currentPlayer)));
   }
 
   if (state.winner === null) {
@@ -330,7 +346,7 @@ function maybeBotTurn() {
     const ids = chooseBotMove(state, dict, state.botLevel, 1);
     if (!ids) {
       // Truly no playable word (defensive — handleNoMoves normally catches this).
-      toast(`${playerName(1)} has no possible words — turn passed`);
+      toast(t('toast.noWords', playerName(1)));
       await sleep(900);
       if (g !== gen) return;
       await passTurn(g);
@@ -377,29 +393,31 @@ function newGame(mode, botLevel) {
   updateWordBar();
 }
 
-function showGameOver() {
+function renderGameOverText() {
   const stalemate = state.endReason === 'stalemate';
   let title, sub;
   if (state.winner === -1) {
-    title = "It's a draw";
-    sub = 'Neither side could spell another word.';
+    title = t('turn.draw');
+    sub = t('over.drawSub');
   } else if (state.mode === 'bot') {
-    title = state.winner === 0 ? 'You win! 🏆' : 'The bot wins 🤖';
-    if (stalemate) {
-      sub = `No words were left to play — ${state.winner === 0 ? 'you held' : 'the bot held'} more territory.`;
-    } else {
-      sub = state.winner === 0
-        ? `You wiped out the level ${state.botLevel} bot.`
-        : 'Your base and territory were wiped out.';
-    }
-  } else {
-    title = `${playerName(state.winner)} wins! 🏆`;
+    title = state.winner === 0 ? t('over.youWinTitle') : t('over.botWinsTitle');
     sub = stalemate
-      ? `No words were left to play — ${playerName(state.winner)} held more territory.`
-      : `${playerName(1 - state.winner)} was wiped off the board.`;
+      ? t('over.stalemateSub', playerName(state.winner))
+      : state.winner === 0
+        ? t('over.youBeatBot', state.botLevel)
+        : t('over.botBeatYou');
+  } else {
+    title = t('turn.wins', playerName(state.winner));
+    sub = stalemate
+      ? t('over.stalemateSub', playerName(state.winner))
+      : t('over.wipedOut', playerName(1 - state.winner));
   }
   els.gameoverTitle.textContent = title;
   els.gameoverSub.textContent = sub;
+}
+
+function showGameOver() {
+  renderGameOverText();
   const g = gen;
   setTimeout(() => {
     if (g !== gen) return;
@@ -448,6 +466,10 @@ function submitWord() {
 }
 
 function onKeyDown(e) {
+  if (e.key === 'Escape' && isLangMenuOpen()) {
+    closeLangMenu(true);
+    return;
+  }
   if (e.key === 'Escape' && els.howtoOverlay.classList.contains('show')) {
     els.howtoOverlay.classList.remove('show');
     return;
@@ -471,6 +493,102 @@ function onKeyDown(e) {
       e.preventDefault();
     }
   }
+}
+
+// --- Language picker -------------------------------------------------------
+
+const isLangMenuOpen = () => !els.langMenu.hidden;
+
+function renderLangPicker() {
+  const cur = currentLanguage();
+  els.btnLang.innerHTML = cur.flag;
+  els.langMenu.innerHTML = '';
+  for (const lang of LANGUAGES) {
+    const li = document.createElement('li');
+    const selected = lang.code === cur.code;
+    li.className = 'lang-option' + (selected ? ' selected' : '');
+    li.dataset.code = lang.code;
+    li.tabIndex = 0;
+    li.setAttribute('role', 'option');
+    li.setAttribute('aria-selected', String(selected));
+    li.innerHTML = `${lang.flag}<span>${lang.name}</span>`;
+    els.langMenu.appendChild(li);
+  }
+}
+
+function openLangMenu() {
+  els.langMenu.hidden = false;
+  els.btnLang.setAttribute('aria-expanded', 'true');
+  els.langMenu.querySelector('.lang-option.selected')?.focus();
+}
+
+function closeLangMenu(refocus = false) {
+  els.langMenu.hidden = true;
+  els.btnLang.setAttribute('aria-expanded', 'false');
+  if (refocus) els.btnLang.focus();
+}
+
+// The board's letters are drawn from the language's own tile distribution and
+// every word on it was validated against that language's list, so a switch
+// re-deals rather than leaving a board the new dictionary can't explain.
+async function selectLanguage(code) {
+  closeLangMenu(true);
+  if (loadingWords || code === getLang()) return;
+
+  setLang(code);
+  const lang = currentLanguage();
+  applyStaticStrings();
+  renderLangPicker();
+  if (state) {
+    updateTurnBanner();
+    updateWordBar();
+    renderAll(); // tile aria-labels are translated too
+    if (state.winner !== null) renderGameOverText();
+  }
+
+  const overlayUp = els.setupOverlay.classList.contains('show') ||
+    els.gameoverOverlay.classList.contains('show');
+  gen++; // cancel any bot turn or animation still in flight
+  dict = null;
+  busy = true;
+  syncLock();
+  toast(t('toast.langLoading', lang.name));
+
+  const ok = await loadWords();
+  if (getLang() !== lang.code) return; // a later switch owns the state now
+  busy = false;
+  if (!ok) {
+    toast(t('toast.langFailed', lang.name));
+    syncLock();
+    return;
+  }
+  if (state && !overlayUp) {
+    newGame(state.mode, state.botLevel);
+    toast(t('toast.langNewGame', lang.name));
+  } else {
+    syncLock();
+  }
+}
+
+function bindLangPicker() {
+  els.btnLang.addEventListener('click', () => {
+    if (isLangMenuOpen()) closeLangMenu();
+    else openLangMenu();
+  });
+  els.langMenu.addEventListener('click', (e) => {
+    const li = e.target.closest('.lang-option');
+    if (li) selectLanguage(li.dataset.code);
+  });
+  els.langMenu.addEventListener('keydown', (e) => {
+    const li = e.target.closest('.lang-option');
+    if (li && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      selectLanguage(li.dataset.code);
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (isLangMenuOpen() && !els.langPicker.contains(e.target)) closeLangMenu();
+  });
 }
 
 // --- Setup screen ----------------------------------------------------------
@@ -513,6 +631,8 @@ function bindUi() {
   els.howtoOverlay.addEventListener('click', (e) => {
     if (e.target === els.howtoOverlay) els.howtoOverlay.classList.remove('show');
   });
+
+  bindLangPicker();
 }
 
 function openSetup() {
@@ -530,24 +650,37 @@ function setMode(mode) {
   els.difficultyRow.classList.toggle('hidden', mode !== 'bot');
 }
 
-function loadWords() {
+// Fetch the current language's word list. Resolves true once `dict` is ready.
+async function loadWords() {
+  loadingWords = true;
   els.btnStart.disabled = true;
-  els.btnStart.textContent = 'Loading words…';
-  loadDictionary(WORDS_URL)
-    .then((d) => {
-      dict = d;
+  els.btnLang.disabled = true;
+  els.btnStart.textContent = t('setup.loading');
+  const lang = currentLanguage();
+  try {
+    const d = await loadDictionary(wordsUrl(lang));
+    if (getLang() !== lang.code) return false; // superseded mid-flight
+    dict = d;
+    els.btnStart.textContent = t('setup.start');
+    return true;
+  } catch (err) {
+    console.error(err);
+    if (getLang() === lang.code) els.btnStart.textContent = t('setup.retry');
+    return false;
+  } finally {
+    if (getLang() === lang.code) {
+      loadingWords = false;
       els.btnStart.disabled = false;
-      els.btnStart.textContent = 'Start game';
-    })
-    .catch((err) => {
-      console.error(err);
-      els.btnStart.disabled = false;
-      els.btnStart.textContent = 'Failed to load words — tap to retry';
-    });
+      els.btnLang.disabled = false;
+    }
+  }
 }
 
 export function initGame() {
   cacheDom();
+  setLang(detectLang());
+  applyStaticStrings();
+  renderLangPicker();
   bindUi();
   setMode('local');
   loadWords();

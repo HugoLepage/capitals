@@ -4,6 +4,12 @@
 
 const A_CODE = 65; // 'A'
 
+// No realistic board offers more than a dozen usable letter tiles, and the
+// word lists (the Italian one especially) are far cheaper to hold in memory
+// once the unplayable long tail is dropped.
+const MAX_WORD_LEN = 12;
+const LETTERS_ONLY = /^[A-Za-z]+$/;
+
 export function countsOf(letters) {
   const c = new Int8Array(26);
   for (const ch of letters) c[ch.charCodeAt(0) - A_CODE]++;
@@ -24,7 +30,7 @@ export async function loadDictionary(url) {
   const words = [];
   for (const line of text.split('\n')) {
     const w = line.trim();
-    if (w.length >= 3 && /^[a-z]+$/.test(w)) {
+    if (w.length >= 3 && w.length <= MAX_WORD_LEN && LETTERS_ONLY.test(w)) {
       words.push(w.toUpperCase());
     }
   }

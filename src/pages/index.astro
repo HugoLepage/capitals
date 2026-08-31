@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import HexGrid from '../components/hexgrid.astro';
 import History from '../components/history.astro';
 import Overlays from '../components/overlays.astro';
+import LangPicker from '../components/langpicker.astro';
 ---
 
 <Layout>
@@ -10,8 +11,9 @@ import Overlays from '../components/overlays.astro';
     <header class="topbar">
       <h1 class="logo">CAPITALS</h1>
       <div class="topbar-actions">
-        <button class="btn ghost small" id="btn-help" type="button">How to play</button>
-        <button class="btn primary small" id="btn-new-game" type="button">New game</button>
+        <button class="btn ghost small" id="btn-help" type="button" data-i18n="top.help">How to play</button>
+        <button class="btn primary small" id="btn-new-game" type="button" data-i18n="top.newGame">New game</button>
+        <LangPicker />
       </div>
     </header>
 
@@ -20,11 +22,11 @@ import Overlays from '../components/overlays.astro';
         <div class="turn-banner" id="turn-banner" aria-live="polite"></div>
         <HexGrid />
         <div class="word-bar">
-          <div class="word-display empty" id="word-display">Tap letters to spell a word</div>
+          <div class="word-display empty" id="word-display" data-i18n="word.prompt">Tap letters to spell a word</div>
           <div class="word-actions">
             <span class="word-status" id="word-status"></span>
-            <button class="btn ghost small" id="btn-clear" type="button" disabled>Clear</button>
-            <button class="btn primary small" id="btn-play" type="button" disabled>Play word</button>
+            <button class="btn ghost small" id="btn-clear" type="button" disabled data-i18n="word.clear">Clear</button>
+            <button class="btn primary small" id="btn-play" type="button" disabled data-i18n="word.play">Play word</button>
           </div>
         </div>
       </section>
