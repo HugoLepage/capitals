@@ -121,6 +121,7 @@ const STRINGS = {
 
     // multiplayer
     'top.multiplayer': 'Multiplayer',
+    'top.signIn': 'Sign In',
     'login.title': 'Multiplayer',
     'login.tag': 'Pick a name and a password. A new name creates an account on the spot.',
     'login.joinTag': 'Sign in to join this game.',
@@ -266,6 +267,7 @@ const STRINGS = {
 
     // multijoueur
     'top.multiplayer': 'Multijoueur',
+    'top.signIn': 'Se connecter',
     'login.title': 'Multijoueur',
     'login.tag': 'Choisissez un nom et un mot de passe. Un nouveau nom crée un compte immédiatement.',
     'login.joinTag': 'Connectez-vous pour rejoindre cette partie.',
@@ -411,6 +413,7 @@ const STRINGS = {
 
     // multigiocatore
     'top.multiplayer': 'Multigiocatore',
+    'top.signIn': 'Accedi',
     'login.title': 'Multigiocatore',
     'login.tag': 'Scegli un nome e una password. Un nome nuovo crea subito un account.',
     'login.joinTag': 'Accedi per unirti a questa partita.',

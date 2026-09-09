@@ -40,6 +40,7 @@ export async function initLobby(h) {
   els = {
     btnMultiplayer: $('btn-multiplayer'),
     mpDot: $('mp-dot'),
+    mpLabel: $('mp-label'),
     mpName: $('mp-name'),
     loginOverlay: $('login-overlay'),
     loginTag: $('login-tag'),
@@ -335,6 +336,7 @@ async function signOut() {
 function renderTopbar() {
   const user = currentUser();
   els.mpDot.hidden = !user;
+  els.mpLabel.hidden = !!user;
   els.mpName.hidden = !user;
   els.mpName.textContent = user ? user.name : '';
   els.btnMultiplayer.classList.toggle('signed-in', !!user);
