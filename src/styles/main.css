@@ -66,10 +66,17 @@ body {
 
 /* --- language picker ------------------------------------------------------- */
 
-/* Above the overlays (z-index 100) — the language must stay switchable from
-   the setup screen, which is exactly where it is usually chosen. */
+/* The flag and the Multiplayer button are raised above the setup and
+   game-over dialogs (z-index 100) — the language is usually chosen right
+   there, and a finished online game leads back to the lobby — but only while
+   one of them is up; those dialogs are kept clear of the top bar in return.
+   game.js keeps body.dialog-open in sync. */
 .lang-picker {
   position: relative;
+}
+
+body.dialog-open .lang-picker,
+body.dialog-open .mp-btn {
   z-index: 200;
 }
 
@@ -545,7 +552,7 @@ body {
   border-radius: 999px;
   font-size: 14px;
   font-weight: 700;
-  z-index: 200;
+  z-index: 350;
   pointer-events: none;
   max-width: 92vw;
   text-align: center;
@@ -580,4 +587,367 @@ body {
     flex-direction: column;
     gap: 6px;
   }
+}
+
+/* --- multiplayer ------------------------------------------------------------ */
+
+/* Raised above the overlays like the flag, so the lobby can be opened from the
+   setup screen shown on first load. */
+.mp-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mp-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #3d8b40;
+  box-shadow: 0 0 0 3px rgba(61, 139, 64, 0.22);
+  flex: none;
+}
+
+.mp-dot.busy {
+  background: var(--c-gold);
+  box-shadow: 0 0 0 3px rgba(240, 169, 60, 0.25);
+}
+
+.mp-name {
+  font-weight: 800;
+  color: var(--c-ink);
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Login and lobby sit above the setup / game-over overlays (z 100) AND above
+   the raised top-bar controls (z 200), so they never paint through the modal;
+   challenge cards (z 300) and toasts (z 350) stay on top of everything. */
+.overlay.mp-overlay {
+  z-index: 220;
+}
+
+.login-form {
+  text-align: left;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 12px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.field input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 2px solid #dfc179;
+  background: #fff;
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 16px; /* 16px stops iOS from zooming the page into the field */
+  font-weight: 600;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--c-gold);
+  box-shadow: 0 0 0 3px rgba(240, 169, 60, 0.28);
+}
+
+.form-error {
+  min-height: 18px;
+  margin-top: 8px;
+  color: #c2453a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--c-ink-soft);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.linkish:hover {
+  color: var(--c-ink);
+}
+
+.lobby-modal {
+  max-width: 520px;
+  text-align: left;
+}
+
+.lobby-modal .modal-title,
+.lobby-modal .modal-tag {
+  text-align: center;
+}
+
+.lobby-me {
+  margin-bottom: 6px;
+}
+
+.lobby-section {
+  margin-top: 18px;
+}
+
+.lobby-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-soft);
+}
+
+.lobby-count {
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.lobby-empty {
+  font-size: 13px;
+  color: var(--c-ink-soft);
+  opacity: 0.85;
+  padding: 6px 2px;
+}
+
+.player-list,
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player-row,
+.recent-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 12px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 0 rgba(122, 87, 29, 0.12);
+  font-size: 14px;
+}
+
+.player-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-status {
+  font-size: 12px;
+  color: var(--c-ink-soft);
+  white-space: nowrap;
+}
+
+.presence-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #3d8b40;
+  flex: none;
+}
+
+.presence-dot.off {
+  background: #c4b89a;
+}
+
+.player-row.waiting .btn.primary {
+  opacity: 0.55;
+}
+
+.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.record-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 8px;
+  border-radius: 8px;
+}
+
+.record-row:nth-child(odd) {
+  background: rgba(122, 87, 29, 0.05);
+}
+
+.record-row .record-who {
+  font-weight: 800;
+}
+
+.record-row .record-line {
+  color: var(--c-ink-soft);
+  white-space: nowrap;
+}
+
+.recent-when {
+  font-size: 12px;
+  color: var(--c-ink-soft);
+  white-space: nowrap;
+  min-width: 68px;
+}
+
+.recent-opp {
+  flex: 1;
+  min-width: 0;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-open {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-ink-soft);
+  text-decoration: underline;
+}
+
+.pill {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  background: rgba(122, 87, 29, 0.1);
+  color: var(--c-ink-soft);
+}
+
+.pill.win  { background: rgba(61, 139, 64, 0.16); color: #2f7a33; }
+.pill.loss { background: rgba(221, 82, 69, 0.16); color: #b5382d; }
+.pill.draw { background: rgba(86, 121, 221, 0.16); color: #3b5bb8; }
+.pill.incomplete { background: rgba(240, 169, 60, 0.22); color: #9a6410; }
+
+.word-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.word-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(240, 169, 60, 0.22);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.word-chip small {
+  margin-left: 4px;
+  font-weight: 700;
+  color: var(--c-ink-soft);
+  letter-spacing: 0;
+}
+
+/* incoming challenges */
+
+.challenge-stack {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(360px, calc(100vw - 28px));
+}
+
+.challenge-card {
+  background: #fff9e6;
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 14px 34px rgba(60, 38, 5, 0.35);
+  animation: card-in 240ms cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+
+@keyframes card-in {
+  from {
+    transform: translateY(-12px) scale(0.96);
+    opacity: 0;
+  }
+}
+
+.challenge-text {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.challenge-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .challenge-card {
+    animation-duration: 1ms;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* --- joining a room from a ?session link ------------------------------------ */
+
+/* Set by an inline script in <head>; game.js removes it once it decides the
+   setup screen really should show (dead link, sign-in dismissed). */
+html.joining #setup-overlay {
+  display: none;
+}
+
+.mode-row {
+  flex-wrap: wrap;
+}
+
+.mode-card {
+  min-width: 110px;
+}
+
+.btn.small.danger {
+  border-color: rgba(221, 82, 69, 0.55);
+  color: #b5382d;
+}
+
+/* The setup and game-over dialogs stay clear of the (raised) top bar even on
+   short screens; --topbar-h is measured by game.js. */
+#setup-overlay,
+#gameover-overlay {
+  padding-top: calc(var(--topbar-h, 56px) + 8px);
+}
+
+#setup-overlay .modal,
+#gameover-overlay .modal {
+  max-height: calc(100vh - var(--topbar-h, 56px) - 24px);
 }

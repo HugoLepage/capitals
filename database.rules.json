@@ -1,0 +1,41 @@
+{
+  "rules": {
+    "users": {
+      ".read": true,
+      "$user": {
+        ".validate": "$user.matches(/^[a-z0-9_-]{2,20}$/)",
+        "auth": {
+          ".write": "!data.exists()",
+          ".validate": "newData.hasChildren(['salt', 'verifier']) && newData.child('salt').isString() && newData.child('verifier').isString()"
+        },
+        "profile": { ".write": true },
+        "stats": {
+          ".write": true,
+          "words": {
+            "$word": { ".validate": "$word.matches(/^[A-Z]{3,20}$/) && newData.isNumber()" }
+          }
+        },
+        "matches": {
+          ".write": true,
+          ".indexOn": ["startedAt"]
+        }
+      }
+    },
+    "presence": {
+      ".read": true,
+      ".write": true
+    },
+    "challenges": {
+      ".read": true,
+      ".write": true
+    },
+    "rooms": {
+      ".read": true,
+      "$room": {
+        ".write": "!data.exists() || (data.child('winner').val() === null && newData.child('turn').val() === data.child('turn').val() + 1)",
+        ".validate": "$room.matches(/^[a-z0-9]{6,20}$/) && newData.child('id').val() === $room && newData.child('lang').isString() && newData.child('turn').isNumber() && newData.hasChildren(['players', 'tiles'])",
+        "statsRecorded": { ".write": "data.val() !== true" }
+      }
+    }
+  }
+}

@@ -15,6 +15,11 @@
         <span class="mode-name" data-i18n="setup.bot">Vs bot</span>
         <span class="mode-desc" data-i18n="setup.botDesc">Battle the machine</span>
       </button>
+      <button class="mode-card" id="btn-mode-online" type="button">
+        <span class="mode-icon">🌐</span>
+        <span class="mode-name" data-i18n="setup.online">Online</span>
+        <span class="mode-desc" data-i18n="setup.onlineDesc">Challenge another player</span>
+      </button>
     </div>
 
     <div class="difficulty-row hidden" id="difficulty-row">
@@ -70,3 +75,65 @@
     <button class="btn ghost" id="btn-change-mode" type="button" data-i18n="over.changeMode">Change mode</button>
   </div>
 </div>
+
+<!-- Multiplayer: sign in / create account -->
+<div class="overlay mp-overlay" id="login-overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="login-title" aria-describedby="login-tag">
+    <h2 class="modal-title" id="login-title" data-i18n="login.title">Multiplayer</h2>
+    <p class="modal-tag" id="login-tag" data-i18n="login.tag">Pick a name and a password. A new name creates an account on the spot.</p>
+    <form class="login-form" id="login-form" novalidate>
+      <label class="field">
+        <span data-i18n="login.name">Username</span>
+        <input id="login-name" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="20" required />
+      </label>
+      <label class="field">
+        <span data-i18n="login.password">Password</span>
+        <input id="login-password" type="password" autocomplete="current-password" maxlength="64" required />
+      </label>
+      <div class="form-error" id="login-error" role="alert"></div>
+      <button class="btn primary big" id="btn-login" type="submit" data-i18n="login.submit">Sign in</button>
+    </form>
+    <button class="btn ghost" id="btn-login-cancel" type="button" data-i18n="login.cancel">Cancel</button>
+  </div>
+</div>
+
+<!-- Multiplayer: lobby -->
+<div class="overlay mp-overlay" id="lobby-overlay">
+  <div class="modal lobby-modal" id="lobby-modal" role="dialog" aria-modal="true" aria-labelledby="lobby-title" tabindex="-1">
+    <h2 class="modal-title" id="lobby-title" data-i18n="lobby.title">Multiplayer</h2>
+    <p class="modal-tag lobby-me">
+      <span data-i18n="lobby.signedInAs">Signed in as</span> <b id="lobby-name"></b>
+      <span aria-hidden="true">·</span>
+      <button class="linkish" id="btn-logout" type="button" data-i18n="lobby.signOut">Sign out</button>
+    </p>
+
+    <section class="lobby-section">
+      <h3 class="lobby-head"><span data-i18n="lobby.players">Players online</span><span class="lobby-count" id="lobby-count"></span></h3>
+      <ul class="player-list" id="player-list"></ul>
+      <div class="lobby-empty" id="players-empty" data-i18n="lobby.noPlayers">Nobody else is online right now. Keep this page open — challenges pop up wherever you are.</div>
+    </section>
+
+    <section class="lobby-section">
+      <h3 class="lobby-head" data-i18n="lobby.record">Your record</h3>
+      <div class="record-list" id="record-list"></div>
+      <div class="lobby-empty" id="record-empty" data-i18n="lobby.noRecord">No games recorded yet — bot games count too while you are signed in.</div>
+    </section>
+
+    <section class="lobby-section">
+      <h3 class="lobby-head" data-i18n="lobby.recent">Recent games</h3>
+      <ul class="recent-list" id="recent-list"></ul>
+      <div class="lobby-empty" id="recent-empty" data-i18n="lobby.noGames">No games yet.</div>
+    </section>
+
+    <section class="lobby-section">
+      <h3 class="lobby-head" data-i18n="lobby.words">Most played words</h3>
+      <div class="word-chips" id="word-chips"></div>
+      <div class="lobby-empty" id="words-empty" data-i18n="lobby.noWords">No words yet.</div>
+    </section>
+
+    <button class="btn primary big" id="btn-lobby-close" type="button" data-i18n="lobby.close">Close</button>
+  </div>
+</div>
+
+<!-- Incoming challenge cards stack here (above every overlay) -->
+<div class="challenge-stack" id="challenge-stack" role="region" aria-live="polite" aria-label="Challenges" data-i18n="challenge.region" data-i18n-attr="aria-label"></div>

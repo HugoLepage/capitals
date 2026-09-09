@@ -1,4 +1,10 @@
 // Game controller: DOM wiring, turn flow, and animations.
+//
+// Three modes share the board: 'local' (two players, one screen), 'bot', and
+// 'online' (two signed-in players in a Firebase room; see rooms.js). Online,
+// the mover computes the whole outcome of a move on a copy of the state and
+// commits it with a transaction; both clients then animate the change when
+// the room listener delivers it, so the two boards always match.
 
 import { TILES } from './board.js';
 import { loadDictionary, countsOf } from './dictionary.js';
@@ -7,6 +13,18 @@ import { chooseBotMove } from './bot.js';
 import {
   LANGUAGES, applyStaticStrings, currentLanguage, detectLang, getLang, setLang, t,
 } from './i18n.js';
+import { currentUser } from './auth.js';
+import {
+  challengePlayer, closeMpOverlays, hasOutgoingChallenge, initLobby, isMpOverlayOpen, openLobby,
+  requireLogin,
+} from './lobby.js';
+import {
+  commitMove, createRoom, isValidRoomId, newRoomId, resignRoom, unpackTiles, watchRoom,
+} from './rooms.js';
+import { setPresenceRoom, watchPlayer } from './presence.js';
+import {
+  countWord, endBotMatch, finalizeOnlineMatch, onlineStartEntries, startBotMatch,
+} from './stats.js';
 
 const BASE = import.meta.env.BASE_URL.endsWith('/')
   ? import.meta.env.BASE_URL
@@ -29,6 +47,15 @@ let busy = false;
 let moveCount = 0;
 let gen = 0; // incremented on every new game; async flows bail if it changed
 let loadingWords = false;
+let langLocked = false; // the picker is frozen while in an online room
+
+// Online room the board is attached to (mode 'online' only).
+// { roomId, seat (0|1|null for spectators), players, turn, unsub,
+//   unsubPresence, opponentOnline, loaded, latest, pumping }
+let online = null;
+
+// Stats record of the bot game in progress, when signed in.
+let botMatch = null; // { id, level, user }
 
 // --- DOM handles -----------------------------------------------------------
 
@@ -45,12 +72,14 @@ function cacheDom() {
     wordStatus: $('word-status'),
     btnClear: $('btn-clear'),
     btnPlay: $('btn-play'),
+    btnResign: $('btn-resign'),
     historyList: $('history-list'),
     historyEmpty: $('history-empty'),
     toast: $('toast'),
     setupOverlay: $('setup-overlay'),
     btnModeLocal: $('btn-mode-local'),
     btnModeBot: $('btn-mode-bot'),
+    btnModeOnline: $('btn-mode-online'),
     difficultyRow: $('difficulty-row'),
     difficulty: $('difficulty'),
     difficultyValue: $('difficulty-value'),
@@ -77,7 +106,10 @@ function cacheDom() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const isOnline = () => state !== null && state.mode === 'online' && online !== null;
+
 function playerName(p) {
+  if (state.mode === 'online') return online?.players[p]?.name || '?';
   if (state.mode === 'bot') return p === 0 ? t('player.you') : t('player.bot', state.botLevel);
   return p === 0 ? t('player.red') : t('player.blue');
 }
@@ -87,6 +119,10 @@ function playerName(p) {
 const colorName = (p) => (p === 0 ? t('player.red') : t('player.blue'));
 
 function turnLabel(p) {
+  if (state.mode === 'online') {
+    if (online.seat === null) return t('turn.of', playerName(p));
+    return p === online.seat ? t('turn.yours') : t('turn.waiting', playerName(p));
+  }
   if (state.mode === 'bot') return p === 0 ? t('turn.yours') : t('turn.botThinking');
   return p === 0 ? t('turn.red') : t('turn.blue');
 }
@@ -98,6 +134,15 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => els.toast.classList.remove('show'), ms);
 }
+
+function hideToast() {
+  clearTimeout(toastTimer);
+  els.toast.classList.remove('show');
+}
+
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[c]));
 
 // --- Rendering -------------------------------------------------------------
 
@@ -137,11 +182,22 @@ function renderAll() {
   for (const tile of state.tiles) renderTile(tile);
 }
 
+// True when the person at this screen may not touch the board right now.
+function inputBlocked() {
+  if (!state) return true;
+  if (state.mode === 'bot') return state.currentPlayer === 1;
+  if (state.mode === 'online') return !online || online.seat === null || state.currentPlayer !== online.seat;
+  return false;
+}
+
 function syncLock() {
-  const locked = busy || !state || state.winner !== null ||
-    (state.mode === 'bot' && state.currentPlayer === 1);
+  const locked = busy || !state || state.winner !== null || inputBlocked();
   els.grid.classList.toggle('locked', locked);
   els.grid.inert = locked; // also drops the 45 tile buttons from the tab order
+  // Resigning is only for a seated player in a running online game.
+  const canResign = isOnline() && online.seat !== null && state.winner === null;
+  els.btnResign.classList.toggle('hidden', !canResign);
+  if (!canResign) disarmResign();
 }
 
 function countOwned(p) {
@@ -151,17 +207,24 @@ function countOwned(p) {
 function updateTurnBanner(botThinking = false) {
   let label;
   if (state.winner !== null) {
-    label = state.winner === -1 ? t('turn.draw') :
-      state.mode === 'bot'
-        ? (state.winner === 0 ? t('turn.youWin') : t('turn.botWins'))
-        : t('turn.wins', playerName(state.winner));
+    if (state.winner === -1) label = t('turn.draw');
+    else if (state.mode === 'bot') label = state.winner === 0 ? t('turn.youWin') : t('turn.botWins');
+    else if (state.mode === 'online' && online?.seat === state.winner) label = t('turn.youWin');
+    else label = t('turn.wins', playerName(state.winner));
   } else {
     label = botThinking ? t('turn.botThinking') : turnLabel(state.currentPlayer);
+  }
+  let presence = '';
+  if (isOnline() && online.seat !== null) {
+    const opp = playerName(1 - online.seat);
+    const status = online.opponentOnline ? t('presence.online') : t('presence.offline');
+    presence = `<span class="presence-dot${online.opponentOnline ? '' : ' off'}" ` +
+      `title="${escapeHtml(opp)} · ${status}" aria-label="${escapeHtml(opp)} · ${status}"></span>`;
   }
   els.banner.innerHTML =
     `<span class="dot p0"></span><span class="score">${countOwned(0)}</span>` +
     `<span class="turn-label${state.winner === null ? ' p' + state.currentPlayer : ''}">${label}</span>` +
-    `<span class="score">${countOwned(1)}</span><span class="dot p1"></span>`;
+    `<span class="score">${countOwned(1)}</span><span class="dot p1"></span>${presence}`;
   syncLock();
 }
 
@@ -192,10 +255,16 @@ function addHistoryEntry(player, word) {
   els.historyEmpty.style.display = 'none';
   const li = document.createElement('li');
   li.className = `hist-row p${player}`;
-  li.innerHTML = `<span class="hist-num">${++moveCount}</span><span class="hist-word">${word.toLowerCase()}</span>`;
+  li.innerHTML = `<span class="hist-num">${++moveCount}</span><span class="hist-word">${escapeHtml(word.toLowerCase())}</span>`;
   els.historyList.appendChild(li);
   const panel = els.historyList.closest('.history-panel');
   panel.scrollTop = panel.scrollHeight;
+}
+
+function resetHistory() {
+  moveCount = 0;
+  els.historyList.innerHTML = '';
+  els.historyEmpty.style.display = '';
 }
 
 // --- Animations ------------------------------------------------------------
@@ -253,11 +322,13 @@ function dealInBoard() {
 
 // --- Turn flow -------------------------------------------------------------
 
-function canCurrentPlayerMove() {
-  const letters = state.tiles.filter((t) => t.kind === 'letter');
+function canPlayerMove(s) {
+  const letters = s.tiles.filter((t) => t.kind === 'letter');
   if (letters.length < 3) return false;
   return dict.hasAnyWord(countsOf(letters.map((t) => t.letter)), letters.length);
 }
+
+const canCurrentPlayerMove = () => canPlayerMove(state);
 
 // Pass the current player's turn (no playable word). Handles any pending
 // base respawn, including rendering it.
@@ -270,13 +341,17 @@ async function passTurn(g) {
   }
 }
 
+function noWordsToast(player) {
+  // "You have" vs "the bot has" — some languages inflect the verb too.
+  const secondPerson = (state.mode === 'bot' && player === 0) ||
+    (state.mode === 'online' && online?.seat === player);
+  toast(secondPerson ? t('toast.noWordsYou', t('player.you')) : t('toast.noWords', playerName(player)));
+}
+
 async function handleNoMoves(g) {
   let passes = 0;
   while (state.winner === null && !canCurrentPlayerMove()) {
-    const name = playerName(state.currentPlayer);
-    // "You have" vs "the bot has" — some languages inflect the verb too.
-    const secondPerson = state.mode === 'bot' && state.currentPlayer === 0;
-    toast(secondPerson ? t('toast.noWordsYou', name) : t('toast.noWords', name));
+    noWordsToast(state.currentPlayer);
     await sleep(1000);
     if (g !== gen) return;
     await passTurn(g);
@@ -292,6 +367,8 @@ async function handleNoMoves(g) {
 }
 
 async function playMove(tileIds) {
+  if (state.mode === 'online') return playOnlineMove(tileIds);
+
   const g = gen;
   busy = true;
   syncLock();
@@ -300,6 +377,9 @@ async function playMove(tileIds) {
   selection = [];
   updateWordBar();
   addHistoryEntry(res.player, res.word);
+  if (state.mode === 'bot' && player === 0 && botMatch) {
+    countWord(botMatch.user, res.word, botMatch.id);
+  }
 
   await animateMove(res);
   if (g !== gen) return;
@@ -373,20 +453,497 @@ function maybeBotTurn() {
   }, 700);
 }
 
+// --- Online play -----------------------------------------------------------
+
+// Run a complete move on a copy of `base` — the same sequence playMove
+// performs on the live state, minus the animation — and describe every
+// visible consequence so both clients can animate it identically.
+function computeOnlineMove(base, tileIds, seat) {
+  const sim = {
+    tiles: base.tiles.map((t) => ({ ...t })),
+    currentPlayer: base.currentPlayer,
+    mode: 'online',
+    botLevel: null,
+    words: [],
+    pendingRespawn: base.pendingRespawn,
+    winner: null,
+    endReason: null,
+  };
+  const res = resolveMove(sim, tileIds, seat);
+  const adv = advanceTurn(sim, res);
+  const lastMove = {
+    by: seat,
+    word: res.word,
+    tileIds,
+    captured: res.captured,
+    consumed: res.consumed,
+    revealed: res.revealed,
+    destroyed: res.destroyed,
+    baseDestroyed: res.baseDestroyed,
+    extraTurn: res.extraTurn,
+    respawned: adv.respawned,
+    fixed: [],
+    passes: [],
+    stalemate: false,
+  };
+  if (sim.winner === null) {
+    lastMove.fixed = ensurePlayable(sim, dict);
+    let passes = 0;
+    while (sim.winner === null && !canPlayerMove(sim)) {
+      const passer = sim.currentPlayer;
+      const a = advanceTurn(sim, { winner: null, extraTurn: false });
+      lastMove.passes.push({ player: passer, respawned: a.respawned });
+      if (++passes >= 2 && sim.winner === null) {
+        const c0 = sim.tiles.filter((t) => t.owner === 0).length;
+        const c1 = sim.tiles.filter((t) => t.owner === 1).length;
+        sim.winner = c0 === c1 ? -1 : c0 > c1 ? 0 : 1;
+        sim.endReason = 'stalemate';
+        lastMove.stalemate = true;
+        break;
+      }
+    }
+  }
+  // A wipe-out (immediate, or through a failed respawn) has no other reason.
+  if (sim.winner !== null && sim.endReason === null) sim.endReason = 'wipeout';
+  return { next: sim, lastMove, word: res.word };
+}
+
+async function playOnlineMove(tileIds) {
+  if (!online || online.seat === null || state.currentPlayer !== online.seat) return;
+  const g = gen;
+  const seat = online.seat;
+  const roomId = online.roomId;
+  const expectedTurn = online.turn;
+  busy = true;
+  syncLock();
+
+  const { next, lastMove, word } = computeOnlineMove(state, tileIds, seat);
+
+  // Badges off before the flips render these tiles in their new state.
+  selection = [];
+  for (const id of tileIds) renderTile(state.tiles[id]);
+  updateWordBar();
+
+  // Offline, the transaction simply waits for the connection to come back;
+  // say so rather than sit on a locked board in silence.
+  const slowTimer = setTimeout(() => {
+    if (g === gen) toast(t('toast.moveSlow'), 6000);
+  }, 6000);
+  let result;
+  try {
+    result = await commitMove(roomId, { expectedTurn, seat, next, word, lastMove });
+  } catch (err) {
+    console.error(err);
+    clearTimeout(slowTimer);
+    if (g !== gen) return;
+    toast(t('toast.moveFailed'));
+    if (!online.pumping) busy = false;
+    updateTurnBanner();
+    updateWordBar();
+    return;
+  }
+  clearTimeout(slowTimer);
+  if (g !== gen) return;
+
+  if (!result.committed) {
+    // Somebody else changed the room first; the listener has (or will have)
+    // delivered the real position — just give the board back.
+    toast(t('toast.outOfSync'));
+    if (!online.pumping && online.turn !== expectedTurn + 1) busy = false;
+    updateTurnBanner();
+    updateWordBar();
+    return;
+  }
+
+  // The room listener animates the committed move (for both players).
+  const me = currentUser();
+  if (me && online.players[seat]?.uname === me.uname) countWord(me, word, roomId);
+}
+
+const tilesDiffer = (a, b) => a.kind !== b.kind || a.owner !== b.owner || a.letter !== b.letter;
+
+function stateFromRoom(room) {
+  return {
+    tiles: unpackTiles(room.tiles),
+    currentPlayer: room.currentPlayer,
+    mode: 'online',
+    botLevel: null,
+    words: room.words.map((w) => ({ player: w.player, word: w.word })),
+    pendingRespawn: room.pendingRespawn,
+    winner: room.winner,
+    endReason: room.endReason,
+  };
+}
+
+// Serialise room snapshots: one at a time, in order, each fully animated
+// before the next is looked at.
+function onRoomSnapshot(room) {
+  online.latest = room;
+  pumpRoom();
+}
+
+async function pumpRoom() {
+  if (!online || online.pumping) return;
+  const o = online;
+  o.pumping = true;
+  try {
+    while (online === o && o.latest) {
+      const room = o.latest;
+      o.latest = null;
+      if (!o.loaded) await firstRoomLoad(room);
+      else await applyRoomUpdate(room);
+    }
+  } finally {
+    o.pumping = false;
+  }
+}
+
+async function firstRoomLoad(room) {
+  const g = gen;
+  const me = currentUser();
+  const seatIdx = me ? room.players.findIndex((p) => p.uname === me.uname) : -1;
+  online.players = room.players;
+  online.seat = seatIdx >= 0 ? seatIdx : null;
+
+  // The board was dealt from the room's language: dictionary and letter bag
+  // must both follow it.
+  const ok = await ensureLanguage(room.lang);
+  if (g !== gen) return;
+  if (!ok) {
+    toast(t('toast.langFailed', currentLanguage().name));
+    leaveRoom();
+    openSetup();
+    return;
+  }
+
+  state = stateFromRoom(room);
+  online.turn = room.turn;
+  online.loaded = true;
+  selection = [];
+  busy = false;
+  botMatch = null;
+  resetHistory();
+  for (const w of room.words) addHistoryEntry(w.player, w.word);
+  closeAllOverlays();
+  hideToast();
+  renderAll();
+  dealInBoard();
+  updateTurnBanner();
+  updateWordBar();
+
+  if (online.seat !== null) takeSeat(false);
+  else toast(t('toast.spectating'));
+
+  if (state.winner !== null) {
+    showGameOver();
+    if (room.statsRecorded !== true) finalizeOnlineMatch(room, me?.uname);
+  }
+}
+
+// Seated: announce the room in presence and follow the opponent's presence.
+function takeSeat(announce) {
+  const g = gen;
+  const o = online;
+  // Only a running game counts as "in a game" for the lobby.
+  setPresenceRoom(state.winner === null ? o.roomId : null);
+  const opp = o.players[1 - o.seat];
+  if (o.unsubPresence) o.unsubPresence();
+  o.unsubPresence = watchPlayer(opp.uname, (p) => {
+    if (g !== gen || online !== o) return;
+    o.opponentOnline = !!(p && p.online);
+    // Mid-animation the banner would reveal the final score early.
+    if (state && !busy) updateTurnBanner();
+  });
+  if (announce) toast(t('toast.seated'));
+  updateTurnBanner();
+  updateWordBar();
+}
+
+// A spectator who signs in (or was signed out when the link opened) and turns
+// out to be one of the two players gets their seat.
+function refreshSeat() {
+  const me = currentUser();
+  if (!online || !online.loaded || online.seat !== null || !me) return;
+  const idx = online.players.findIndex((p) => p.uname === me.uname);
+  if (idx < 0) return;
+  online.seat = idx;
+  takeSeat(true);
+  if (state.winner !== null) showGameOver();
+}
+
+async function applyRoomUpdate(room) {
+  const g = gen;
+  if (room.turn <= online.turn) return; // metadata only (or stale)
+
+  busy = true;
+  syncLock();
+  const prevTiles = state.tiles;
+  const newTiles = unpackTiles(room.tiles);
+  const stepped = room.turn === online.turn + 1 && room.lastMove !== null;
+
+  if (selection.length) {
+    const old = selection;
+    selection = [];
+    for (const id of old) renderTile(prevTiles[id]);
+  }
+  for (let i = moveCount; i < room.words.length; i++) {
+    addHistoryEntry(room.words[i].player, room.words[i].word);
+  }
+
+  // Swap the state first: flipTile re-renders each tile from `state` at the
+  // midpoint of its flip, so the board reveals the new position tile by tile.
+  state.tiles = newTiles;
+  state.currentPlayer = room.currentPlayer;
+  state.pendingRespawn = room.pendingRespawn;
+  state.winner = room.winner;
+  state.endReason = room.endReason;
+  state.words = room.words.map((w) => ({ player: w.player, word: w.word }));
+  online.turn = room.turn;
+  updateWordBar();
+
+  const changed = [];
+  for (let i = 0; i < newTiles.length; i++) {
+    if (tilesDiffer(prevTiles[i], newTiles[i])) changed.push(i);
+  }
+  const done = new Set();
+  const take = (ids) => {
+    const list = ids.filter((id) => !done.has(id));
+    for (const id of list) done.add(id);
+    return list;
+  };
+
+  if (stepped) {
+    const m = room.lastMove;
+    const captured = take(m.captured);
+    if (captured.length) {
+      await Promise.all(captured.map((id, i) => flipTile(id, i * 85)));
+      if (g !== gen) return;
+    }
+    const proms = [];
+    take(m.destroyed).forEach((id, i) => proms.push(flipTile(id, i * 70)));
+    take(m.revealed).forEach((id, i) => proms.push(flipTile(id, 140 + i * 70)));
+    take(m.consumed).forEach((id, i) => proms.push(flipTile(id, 70 + i * 70)));
+    if (m.baseDestroyed) {
+      els.boardWrap.classList.add('shake');
+      setTimeout(() => els.boardWrap.classList.remove('shake'), 600);
+    }
+    if (proms.length) await Promise.all(proms);
+    if (g !== gen) return;
+    if (m.baseDestroyed && m.extraTurn) {
+      toast(t('toast.baseDown', playerName(m.by), playerName(1 - m.by)));
+    }
+    if (m.respawned !== null) {
+      take([m.respawned]);
+      await flipTile(m.respawned, 250);
+      if (g !== gen) return;
+      toast(t('toast.respawn', playerName(newTiles[m.respawned].owner)));
+    }
+    const fixed = take(m.fixed);
+    if (fixed.length) {
+      await Promise.all(fixed.map((id, i) => flipTile(id, i * 70)));
+      if (g !== gen) return;
+    }
+    for (const p of m.passes) {
+      noWordsToast(p.player);
+      await sleep(1000);
+      if (g !== gen) return;
+      if (p.respawned !== null) {
+        take([p.respawned]);
+        await flipTile(p.respawned, 150);
+        if (g !== gen) return;
+        toast(t('toast.respawn', playerName(newTiles[p.respawned].owner)));
+      }
+    }
+  }
+  // Anything that changed but was not choreographed (missed turns after a
+  // reconnect, or a defensive catch-all) flips in a quick wave.
+  const rest = take(changed);
+  if (rest.length) {
+    await Promise.all(rest.map((id, i) => flipTile(id, i * 35)));
+    if (g !== gen) return;
+  }
+
+  busy = false;
+  updateTurnBanner();
+  updateWordBar();
+  if (state.winner !== null) {
+    setPresenceRoom(null); // free again as far as the lobby is concerned
+    showGameOver();
+    if (room.statsRecorded !== true) finalizeOnlineMatch(room, currentUser()?.uname);
+  }
+}
+
+function setUrlSession(id) {
+  const url = new URL(location.href);
+  if (id) url.searchParams.set('session', id);
+  else url.searchParams.delete('session');
+  try {
+    history[id ? 'pushState' : 'replaceState']({ session: id || null }, '', url);
+  } catch {
+    /* ignore */
+  }
+}
+
+// Attach the board to a room. Everything about the room arrives through the
+// listener; until then the previous game is frozen.
+function enterRoom(roomId, { pushUrl = true } = {}) {
+  if (!isValidRoomId(roomId)) {
+    toast(t('toast.roomMissing'));
+    return;
+  }
+  if (online && online.roomId === roomId) return;
+  leaveRoom({ keepUrl: true });
+  gen++;
+  const g = gen;
+  busy = true;
+  if (state) syncLock();
+  online = {
+    roomId, seat: null, players: [], turn: -1, unsub: null, unsubPresence: null,
+    opponentOnline: false, loaded: false, latest: null, pumping: false,
+  };
+  if (pushUrl) setUrlSession(roomId);
+  closeAllOverlays();
+  closeMpOverlays();
+  lockLangPicker(true);
+  toast(t('toast.roomLoading'), 30000); // replaced as soon as the board is up
+  const o = online;
+  o.unsub = watchRoom(roomId, (room, err) => {
+    if (g !== gen || online !== o) return;
+    if (err) console.error(err);
+    if (!room) {
+      if (!o.loaded) {
+        toast(t('toast.roomMissing'));
+        leaveRoom();
+        closeMpOverlays();
+        openSetup();
+      }
+      return; // a finished room deleted under us: keep showing it
+    }
+    onRoomSnapshot(room);
+  });
+}
+
+// Give up the current online game after a second tap within three seconds.
+let resignTimer = null;
+
+function disarmResign() {
+  if (!resignTimer) return;
+  clearTimeout(resignTimer);
+  resignTimer = null;
+  els.btnResign.textContent = t('word.resign');
+  els.btnResign.classList.remove('danger');
+}
+
+async function resign() {
+  if (!isOnline() || online.seat === null || state.winner !== null) return;
+  if (!resignTimer) {
+    els.btnResign.textContent = t('word.resignConfirm');
+    els.btnResign.classList.add('danger');
+    resignTimer = setTimeout(disarmResign, 3000);
+    return;
+  }
+  disarmResign();
+  const g = gen;
+  els.btnResign.disabled = true;
+  try {
+    const ok = await resignRoom(online.roomId, online.seat);
+    if (g === gen && !ok) toast(t('toast.outOfSync'));
+  } catch (err) {
+    console.error(err);
+    if (g === gen) toast(t('toast.moveFailed'));
+  } finally {
+    els.btnResign.disabled = false;
+  }
+}
+
+function leaveRoom({ keepUrl = false } = {}) {
+  if (!online) return;
+  gen++;
+  if (online.unsub) online.unsub();
+  if (online.unsubPresence) online.unsubPresence();
+  online = null;
+  busy = false;
+  setPresenceRoom(null);
+  lockLangPicker(false);
+  if (!keepUrl) setUrlSession(null);
+}
+
+// Create the room for an accepted challenge: fresh board in the challenge's
+// language, random seats, both players' match records. Returns the room id.
+async function acceptChallenge(ch) {
+  const me = currentUser();
+  if (!me) throw new Error('signed out');
+  gen++; // freeze whatever game is running while the dictionary may change
+  busy = true;
+  if (state) syncLock();
+  const ok = await ensureLanguage(ch.lang);
+  if (!ok) throw new Error('dictionary'); // lobby.js calls onAcceptFailed
+  const fresh = newState('online', null);
+  ensurePlayable(fresh, dict);
+  const challenger = { uname: ch.from, name: ch.fromName || ch.from };
+  const mine = { uname: me.uname, name: me.name };
+  const players = Math.random() < 0.5 ? [challenger, mine] : [mine, challenger];
+  const id = newRoomId();
+  // Room and both players' "game started" records go in one write.
+  await createRoom({
+    id, players, lang: ch.lang, tiles: fresh.tiles,
+    extraUpdates: onlineStartEntries(id, players, ch.lang),
+  });
+  return id;
+}
+
+// Accepting fell through after the current game was frozen for it.
+function onAcceptFailed() {
+  busy = false;
+  if (state) syncLock();
+  openSetup();
+}
+
+async function onlineRematch() {
+  if (!online || online.seat === null) {
+    openSetup();
+    return;
+  }
+  if (hasOutgoingChallenge()) {
+    toast(t('over.rematchSent'), 4000);
+    return;
+  }
+  if (!online.opponentOnline) {
+    toast(t('over.rematchNeedsOpponent'));
+    return;
+  }
+  const sent = await challengePlayer(online.players[1 - online.seat]);
+  if (sent) toast(t('over.rematchSent'), 4000);
+}
+
+// A ?session link: show the board right away (as a spectator if need be) and,
+// when signed out, offer to sign in so a participant can take their seat.
+function joinFromUrl(roomId) {
+  enterRoom(roomId, { pushUrl: false });
+  if (!currentUser()) requireLogin(() => refreshSeat(), 'join');
+}
+
 // --- Game lifecycle --------------------------------------------------------
 
+function closeAllOverlays() {
+  els.setupOverlay.classList.remove('show');
+  els.gameoverOverlay.classList.remove('show');
+  els.howtoOverlay.classList.remove('show');
+}
+
 function newGame(mode, botLevel) {
+  leaveRoom();
   gen++;
   state = newState(mode, botLevel);
   ensurePlayable(state, dict);
   selection = [];
   busy = false;
-  moveCount = 0;
-  els.historyList.innerHTML = '';
-  els.historyEmpty.style.display = '';
-  els.setupOverlay.classList.remove('show');
-  els.gameoverOverlay.classList.remove('show');
-  els.howtoOverlay.classList.remove('show');
+  resetHistory();
+  closeAllOverlays();
+  const user = currentUser();
+  botMatch = mode === 'bot' && user
+    ? { id: startBotMatch(user, { level: botLevel, lang: getLang() }), level: botLevel, user }
+    : null;
   renderAll();
   dealInBoard();
   updateTurnBanner();
@@ -406,11 +963,28 @@ function renderGameOverText() {
       : state.winner === 0
         ? t('over.youBeatBot', state.botLevel)
         : t('over.botBeatYou');
+  } else if (state.mode === 'online' && online && online.seat !== null) {
+    const resigned = state.endReason === 'resign';
+    const winnerName = playerName(state.winner);
+    const loserName = playerName(1 - state.winner);
+    if (state.winner === online.seat) {
+      title = t('over.youWinTitle');
+      sub = resigned ? t('over.resigned', loserName)
+        : stalemate ? t('over.stalemateSub', winnerName)
+          : t('over.youBeat', loserName);
+    } else {
+      title = t('over.opponentWinsTitle', winnerName);
+      sub = resigned ? t('over.youResigned')
+        : stalemate ? t('over.stalemateSub', winnerName)
+          : t('over.beatYou', winnerName);
+    }
   } else {
     title = t('turn.wins', playerName(state.winner));
-    sub = stalemate
-      ? t('over.stalemateSub', playerName(state.winner))
-      : t('over.wipedOut', playerName(1 - state.winner));
+    sub = state.endReason === 'resign'
+      ? t('over.resigned', playerName(1 - state.winner))
+      : stalemate
+        ? t('over.stalemateSub', playerName(state.winner))
+        : t('over.wipedOut', playerName(1 - state.winner));
   }
   els.gameoverTitle.textContent = title;
   els.gameoverSub.textContent = sub;
@@ -418,6 +992,15 @@ function renderGameOverText() {
 
 function showGameOver() {
   renderGameOverText();
+  // Spectators have nobody to rematch.
+  els.btnRematch.classList.toggle('hidden', state.mode === 'online' && (!online || online.seat === null));
+  if (state.mode === 'bot' && botMatch) {
+    const result = state.winner === -1 ? 'draw' : state.winner === 0 ? 'win' : 'loss';
+    endBotMatch(botMatch.user, botMatch.id, botMatch.level, {
+      result, endReason: state.endReason || 'wipeout',
+    });
+    botMatch = null;
+  }
   const g = gen;
   setTimeout(() => {
     if (g !== gen) return;
@@ -431,7 +1014,7 @@ function showGameOver() {
 function onTileClick(e) {
   const el = e.target.closest('.hex');
   if (!el || busy || !state || !dict || state.winner !== null) return;
-  if (state.mode === 'bot' && state.currentPlayer === 1) return;
+  if (inputBlocked()) return;
   const id = +el.dataset.id;
   const tile = state.tiles[id];
   if (tile.kind !== 'letter') {
@@ -466,6 +1049,7 @@ function submitWord() {
 }
 
 function onKeyDown(e) {
+  if (isMpOverlayOpen()) return; // lobby.js owns its own overlays
   if (e.key === 'Escape' && isLangMenuOpen()) {
     closeLangMenu(true);
     return;
@@ -480,10 +1064,10 @@ function onKeyDown(e) {
     return;
   }
   if (!state || busy || state.winner !== null) return;
-  if (state.mode === 'bot' && state.currentPlayer === 1) return;
+  if (inputBlocked()) return;
   if (els.setupOverlay.classList.contains('show') || els.howtoOverlay.classList.contains('show')) return;
   // Enter on a focused button should activate that button, not submit the word.
-  if (e.key === 'Enter' && !(e.target instanceof Element && e.target.closest('button'))) submitWord();
+  if (e.key === 'Enter' && !(e.target instanceof Element && e.target.closest('button, input'))) submitWord();
   else if (e.key === 'Escape') clearSelection();
   else if (e.key === 'Backspace') {
     if (selection.length) {
@@ -517,6 +1101,7 @@ function renderLangPicker() {
 }
 
 function openLangMenu() {
+  if (langLocked) return;
   els.langMenu.hidden = false;
   els.btnLang.setAttribute('aria-expanded', 'true');
   els.langMenu.querySelector('.lang-option.selected')?.focus();
@@ -528,12 +1113,19 @@ function closeLangMenu(refocus = false) {
   if (refocus) els.btnLang.focus();
 }
 
+// In an online room the language is the room's; the picker is frozen.
+function lockLangPicker(locked) {
+  langLocked = locked;
+  if (locked) closeLangMenu();
+  els.btnLang.disabled = locked || loadingWords;
+}
+
 // The board's letters are drawn from the language's own tile distribution and
 // every word on it was validated against that language's list, so a switch
 // re-deals rather than leaving a board the new dictionary can't explain.
 async function selectLanguage(code) {
   closeLangMenu(true);
-  if (loadingWords || code === getLang()) return;
+  if (loadingWords || langLocked || code === getLang()) return;
 
   setLang(code);
   const lang = currentLanguage();
@@ -568,6 +1160,30 @@ async function selectLanguage(code) {
   } else {
     syncLock();
   }
+}
+
+// Make `code` the current language with its dictionary loaded, without
+// touching the board (online rooms dictate their language, and that choice
+// is not saved as the player's preference). Resolves true when the
+// dictionary is ready.
+async function ensureLanguage(code) {
+  if (getLang() !== code) {
+    setLang(code, false);
+    applyStaticStrings();
+    renderLangPicker();
+    if (state) {
+      updateTurnBanner();
+      updateWordBar();
+      renderAll();
+      if (state.winner !== null) renderGameOverText();
+    }
+    dict = null;
+  }
+  // A load already in flight (for this or another language) always settles;
+  // it only installs its dictionary if the language still matches.
+  while (loadingWords) await sleep(50);
+  if (dict && getLang() === code) return true;
+  return loadWords();
 }
 
 function bindLangPicker() {
@@ -611,9 +1227,15 @@ function bindUi() {
     newGame(chosenMode, +els.difficulty.value);
   });
 
+  els.btnModeOnline.addEventListener('click', openLobby);
+  els.btnResign.addEventListener('click', resign);
+
   els.btnNewGame.addEventListener('click', openSetup);
   els.btnChangeMode.addEventListener('click', openSetup);
-  els.btnRematch.addEventListener('click', () => newGame(state.mode, state.botLevel));
+  els.btnRematch.addEventListener('click', () => {
+    if (state.mode === 'online') onlineRematch();
+    else newGame(state.mode, state.botLevel);
+  });
   els.btnSetupBack.addEventListener('click', () => els.setupOverlay.classList.remove('show'));
   els.setupOverlay.addEventListener('click', (e) => {
     if (e.target === els.setupOverlay && state && state.winner === null) {
@@ -632,15 +1254,42 @@ function bindUi() {
     if (e.target === els.howtoOverlay) els.howtoOverlay.classList.remove('show');
   });
 
+  // The flag and Multiplayer button are only raised above the dim while the
+  // setup or game-over dialog is up (see main.css), and those dialogs keep
+  // clear of the top bar whatever its height.
+  const syncDialogOpen = () => document.body.classList.toggle('dialog-open',
+    els.setupOverlay.classList.contains('show') || els.gameoverOverlay.classList.contains('show'));
+  const dialogObserver = new MutationObserver(syncDialogOpen);
+  dialogObserver.observe(els.setupOverlay, { attributes: true, attributeFilter: ['class'] });
+  dialogObserver.observe(els.gameoverOverlay, { attributes: true, attributeFilter: ['class'] });
+  syncDialogOpen();
+  const topbar = document.querySelector('.topbar');
+  const syncTopbarHeight = () =>
+    document.documentElement.style.setProperty('--topbar-h', `${topbar.offsetHeight}px`);
+  new ResizeObserver(syncTopbarHeight).observe(topbar);
+  syncTopbarHeight();
+
+  window.addEventListener('popstate', () => {
+    const id = new URLSearchParams(location.search).get('session');
+    if (id) {
+      if (!online || online.roomId !== id) joinFromUrl(id);
+    } else if (online) {
+      leaveRoom({ keepUrl: true });
+      openSetup();
+    }
+  });
+
   bindLangPicker();
 }
 
 function openSetup() {
+  document.documentElement.classList.remove('joining'); // see Layout.astro
   els.gameoverOverlay.classList.remove('show');
   // Only a game still in progress can be returned to.
   els.btnSetupBack.classList.toggle('hidden', !state || state.winner !== null);
   els.setupOverlay.classList.add('show');
   els.btnStart.focus();
+  if (!dict && !loadingWords) loadWords();
 }
 
 function setMode(mode) {
@@ -651,6 +1300,9 @@ function setMode(mode) {
 }
 
 // Fetch the current language's word list. Resolves true once `dict` is ready.
+// Only one load runs at a time (callers check `loadingWords`); a load whose
+// language was switched away from mid-flight installs nothing, but always
+// releases the flag so the next load can start.
 async function loadWords() {
   loadingWords = true;
   els.btnStart.disabled = true;
@@ -668,20 +1320,52 @@ async function loadWords() {
     if (getLang() === lang.code) els.btnStart.textContent = t('setup.retry');
     return false;
   } finally {
-    if (getLang() === lang.code) {
-      loadingWords = false;
-      els.btnStart.disabled = false;
-      els.btnLang.disabled = false;
-    }
+    loadingWords = false;
+    els.btnStart.disabled = false;
+    els.btnLang.disabled = langLocked;
   }
 }
 
-export function initGame() {
+const withTimeout = (promise, ms) => Promise.race([promise, sleep(ms).then(() => null)]);
+
+export async function initGame() {
   cacheDom();
   setLang(detectLang());
   applyStaticStrings();
   renderLangPicker();
   bindUi();
   setMode('bot');
-  loadWords();
+
+  const sessionId = new URLSearchParams(location.search).get('session');
+  const lobbyReady = initLobby({
+    toast,
+    acceptChallenge,
+    onAcceptFailed,
+    enterRoom,
+    roomHref: (id) => `?session=${encodeURIComponent(id)}`,
+    onSignedIn: refreshSeat,
+    onSignedOut: () => {
+      if (online) {
+        leaveRoom();
+        openSetup();
+      }
+    },
+    onLoginDismissed: () => {
+      if (!state && !online) openSetup();
+    },
+  });
+
+  if (sessionId && isValidRoomId(sessionId)) {
+    // Straight into the room: no setup screen (Layout.astro hid it before
+    // first paint), and the dictionary is the room's, not the browser's.
+    els.setupOverlay.classList.remove('show');
+    toast(t('toast.roomLoading'), 30000);
+    await withTimeout(lobbyReady, 8000);
+    joinFromUrl(sessionId);
+  } else {
+    if (sessionId) setUrlSession(null);
+    document.documentElement.classList.remove('joining');
+    loadWords();
+    await lobbyReady;
+  }
 }

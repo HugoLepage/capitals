@@ -16,6 +16,11 @@ const base = import.meta.env.BASE_URL.endsWith('/')
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content="Capitals — a word game of hexes and conquest. Spell words, capture territory, and storm your opponent's castle." />
     <title>Capitals</title>
+    <!-- A ?session link goes straight to the board: hide the setup screen
+         before first paint so it never flashes (game.js lifts this again). -->
+    <script is:inline>
+      if (/[?&]session=/.test(location.search)) document.documentElement.classList.add('joining');
+    </script>
   </head>
   <body>
     <slot />

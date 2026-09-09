@@ -13,6 +13,11 @@ import LangPicker from '../components/langpicker.astro';
       <div class="topbar-actions">
         <button class="btn ghost small" id="btn-help" type="button" data-i18n="top.help">How to play</button>
         <button class="btn primary small" id="btn-new-game" type="button" data-i18n="top.newGame">New game</button>
+        <button class="btn ghost small mp-btn" id="btn-multiplayer" type="button">
+          <span class="mp-dot" id="mp-dot" hidden></span>
+          <span data-i18n="top.multiplayer">Multiplayer</span>
+          <span class="mp-name" id="mp-name" hidden></span>
+        </button>
         <LangPicker />
       </div>
     </header>
@@ -25,6 +30,7 @@ import LangPicker from '../components/langpicker.astro';
           <div class="word-display empty" id="word-display" data-i18n="word.prompt">Tap letters to spell a word</div>
           <div class="word-actions">
             <span class="word-status" id="word-status"></span>
+            <button class="btn ghost small hidden" id="btn-resign" type="button" data-i18n="word.resign">Resign</button>
             <button class="btn ghost small" id="btn-clear" type="button" disabled data-i18n="word.clear">Clear</button>
             <button class="btn primary small" id="btn-play" type="button" disabled data-i18n="word.play">Play word</button>
           </div>
