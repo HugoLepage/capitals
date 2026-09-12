@@ -12,15 +12,155 @@ button {
   touch-action: manipulation;
 }
 
+/* Every colour in the app is a token, declared twice: once here for the warm
+   parchment day theme, once in the dark block below. Both blocks carry the same
+   declarations in the same order so the two themes diff line by line. The theme
+   is stamped on <html> as data-theme before first paint — see Layout.astro. */
+
 :root {
+  color-scheme: light;
+
+  /* surfaces, from the page up to a raised card */
   --c-bg: #f8ecc0;
   --c-panel: #fff8e0;
+  --c-surface: #fff9e6;
+  --c-card: #fff;
+  --c-well: #fff; /* recessed — the inside of a text field */
+
+  /* ink */
   --c-ink: #5a3d10;
   --c-ink-soft: #8a6a2f;
+  --c-ink-head: #7a571d;
+  --c-ink-mid: #6d5322;
+  --c-on-gold: #4c320a; /* the one ink that sits on gold, so it never moves */
+
+  /* accents. --c-red / --c-blue are the players' colours in the chrome; the
+     tiles they own carry their own, heavier tokens in hexgrid.css. */
   --c-red: #dd5245;
   --c-blue: #5679dd;
   --c-gold: #f0a93c;
+  --c-gold-hover: var(--c-gold);
+  --btn-primary-hover-filter: brightness(1.06);
   --c-gold-deep: #c98220;
+
+  /* borders, tints and washes */
+  --c-border: #dfc179;
+  --c-edge: transparent;
+  --c-chip: rgba(255, 253, 245, 0.85);
+  --c-chip-hover: rgba(255, 255, 255, 0.8);
+  --c-wash: rgba(255, 255, 255, 0.4);
+  --c-rule: rgba(122, 87, 29, 0.12);
+  --c-stripe: rgba(122, 87, 29, 0.05);
+  --c-tint-neutral: rgba(122, 87, 29, 0.1);
+  --c-tint-gold: rgba(240, 169, 60, 0.22);
+  --c-tint-gold-strong: rgba(240, 169, 60, 0.38);
+  --c-scrim: rgba(90, 61, 16, 0.5);
+
+  /* depth. Seated panels get a hard "ledge" underneath, floating ones a soft
+     bloom; by night each also gains an inset top highlight or a hairline ring,
+     because a shadow alone cannot separate one dark surface from another. */
+  --sh-logo: 0 2px 0 rgba(255, 255, 255, 0.5);
+  --sh-ledge-2: 0 2px 0 rgba(122, 87, 29, 0.15);
+  --sh-ledge-3: 0 3px 0 rgba(122, 87, 29, 0.15);
+  --sh-ledge-card: 0 2px 0 rgba(122, 87, 29, 0.12);
+  --sh-float-menu: 0 14px 34px rgba(60, 38, 5, 0.3);
+  --sh-float-modal: 0 24px 70px rgba(60, 38, 5, 0.35);
+  --sh-float-card: 0 14px 34px rgba(60, 38, 5, 0.35);
+  --sh-toast: none;
+  --sh-focus: 0 0 0 3px rgba(240, 169, 60, 0.28);
+  --sh-dot-ok: 0 0 0 3px rgba(61, 139, 64, 0.22);
+  --sh-dot-busy: 0 0 0 3px rgba(240, 169, 60, 0.25);
+
+  /* status */
+  --c-ok: #3d8b40;
+  --c-error: #c2453a;
+  --c-danger-ink: #b5382d;
+  --c-danger-edge: rgba(221, 82, 69, 0.55);
+  --c-offline: #c4b89a;
+  --c-tint-win: rgba(61, 139, 64, 0.16);
+  --c-ink-win: #2f7a33;
+  --c-tint-loss: rgba(221, 82, 69, 0.16);
+  --c-tint-draw: rgba(86, 121, 221, 0.16);
+  --c-ink-draw: #3b5bb8;
+  --c-ink-gold: #9a6410;
+
+  /* the toast is deliberately inverted against the page, both ways round:
+     a dark chip by day, a light one by night */
+  --c-toast-bg: #5a3d10;
+  --c-toast-ink: #ffedbd;
+
+  --o-disabled: 0.55;
+  --o-hist-num: 0.7;
+}
+
+/* Lamplight — the same table after dusk, lit by one warm lamp from above. No
+   hue moves: gold stays gold and the two players keep their identities. Only
+   the ground drops away, into one umber-cast charcoal ladder, and every
+   hairline, stripe and wash becomes --c-ink's own cream at a low alpha, so the
+   tint family and the ink family are the same colour. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --c-bg: #17130f;
+  --c-panel: #241e17;
+  --c-surface: #2e2720;
+  --c-card: #39312a;
+  --c-well: #1e1913;
+
+  --c-ink: #ece6da;
+  --c-ink-soft: #c0b5a0;
+  --c-ink-head: #f0dfbb;
+  --c-ink-mid: #d9d1c2;
+  --c-on-gold: #4c320a;
+
+  --c-red: #f0796b;
+  --c-blue: #8aa6f2;
+  --c-gold: #f0a93c;
+  --c-gold-hover: #ffc061;
+  --btn-primary-hover-filter: none; /* brightening gold on charcoal only greys it */
+  --c-gold-deep: #a86713;
+
+  --c-border: #857960;
+  --c-edge: rgba(236, 230, 218, 0.18);
+  --c-chip: #2e2720;
+  --c-chip-hover: #3e352d;
+  --c-wash: rgba(236, 230, 218, 0.1);
+  --c-rule: rgba(236, 230, 218, 0.12);
+  --c-stripe: rgba(236, 230, 218, 0.055);
+  --c-tint-neutral: rgba(236, 230, 218, 0.08);
+  --c-tint-gold: rgba(240, 169, 60, 0.2);
+  --c-tint-gold-strong: rgba(240, 169, 60, 0.34);
+  --c-scrim: rgba(0, 0, 0, 0.72);
+
+  --sh-logo: 0 2px 0 rgba(0, 0, 0, 0.55), 0 0 16px rgba(240, 169, 60, 0.14);
+  --sh-ledge-2: inset 0 1px 0 rgba(236, 230, 218, 0.07), 0 2px 0 rgba(0, 0, 0, 0.55);
+  --sh-ledge-3: inset 0 1px 0 rgba(236, 230, 218, 0.07), 0 3px 0 rgba(0, 0, 0, 0.55);
+  --sh-ledge-card: inset 0 1px 0 rgba(236, 230, 218, 0.06), 0 2px 0 rgba(0, 0, 0, 0.5);
+  --sh-float-menu: 0 14px 34px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(236, 230, 218, 0.18);
+  --sh-float-modal: 0 24px 70px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(236, 230, 218, 0.18);
+  --sh-float-card: 0 14px 34px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(236, 230, 218, 0.18);
+  --sh-toast: 0 10px 28px rgba(0, 0, 0, 0.55);
+  --sh-focus: 0 0 0 3px rgba(240, 169, 60, 0.7);
+  --sh-dot-ok: 0 0 0 3px rgba(95, 191, 99, 0.32);
+  --sh-dot-busy: 0 0 0 3px rgba(240, 169, 60, 0.38);
+
+  --c-ok: #5fbf63;
+  --c-error: #f3766a;
+  --c-danger-ink: #ff9e92;
+  --c-danger-edge: rgba(255, 158, 146, 0.6);
+  --c-offline: #5a5246;
+  --c-tint-win: rgba(95, 191, 99, 0.18);
+  --c-ink-win: #7fd483;
+  --c-tint-loss: rgba(240, 121, 107, 0.18);
+  --c-tint-draw: rgba(138, 166, 242, 0.18);
+  --c-ink-draw: #a8beff;
+  --c-ink-gold: #f0c078;
+
+  --c-toast-bg: #ece6da;
+  --c-toast-ink: #221d16;
+
+  --o-disabled: 0.62;
+  --o-hist-num: 0.8;
 }
 
 html,
@@ -54,14 +194,22 @@ body {
   font-size: clamp(20px, 3.4vw, 30px);
   font-weight: 900;
   letter-spacing: 0.22em;
-  color: #7a571d;
-  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.5);
+  color: var(--c-ink-head);
+  text-shadow: var(--sh-logo);
 }
 
 .topbar-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  /* The row wraps whenever it stops fitting, rather than at one tuned width:
+     with four controls in it there is a band of narrow-desktop widths where
+     the old nowrap squeezed the pills until their labels broke in two. */
+  flex-wrap: wrap;
+}
+
+.topbar-actions .btn {
+  white-space: nowrap;
 }
 
 /* --- language picker ------------------------------------------------------- */
@@ -76,7 +224,8 @@ body {
 }
 
 body.dialog-open .lang-picker,
-body.dialog-open .mp-btn {
+body.dialog-open .mp-btn,
+body.dialog-open .theme-btn {
   z-index: 200;
 }
 
@@ -85,15 +234,15 @@ body.dialog-open .mp-btn {
   align-items: center;
   padding: 6px;
   line-height: 0;
-  background: rgba(255, 253, 245, 0.85);
-  border: 2px solid #dfc179;
+  background: var(--c-chip);
+  border: 2px solid var(--c-border);
   border-radius: 10px;
   cursor: pointer;
   transition: transform 100ms ease, background 100ms ease;
 }
 
 .lang-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--c-chip-hover);
 }
 
 .lang-btn:active:not(:disabled) {
@@ -101,7 +250,7 @@ body.dialog-open .mp-btn {
 }
 
 .lang-btn:disabled {
-  opacity: 0.55;
+  opacity: var(--o-disabled);
   cursor: default;
 }
 
@@ -123,9 +272,9 @@ body.dialog-open .mp-btn {
   margin: 0;
   padding: 6px;
   list-style: none;
-  background: #fff9e6;
+  background: var(--c-surface);
   border-radius: 14px;
-  box-shadow: 0 14px 34px rgba(60, 38, 5, 0.3);
+  box-shadow: var(--sh-float-menu);
 }
 
 .lang-menu[hidden] {
@@ -146,12 +295,64 @@ body.dialog-open .mp-btn {
 
 .lang-option:hover,
 .lang-option:focus-visible {
-  background: rgba(240, 169, 60, 0.22);
+  background: var(--c-tint-gold);
   outline: none;
 }
 
 .lang-option.selected {
-  background: rgba(240, 169, 60, 0.38);
+  background: var(--c-tint-gold-strong);
+}
+
+/* --- theme toggle ---------------------------------------------------------- */
+
+/* The icon pair is swapped by CSS rather than by JS, so applyStaticStrings()
+   can keep writing this button's aria-label/title without touching its markup.
+   Three classes, like .btn.small.danger below: .btn.small is the rule being
+   overridden and it comes later in the file, so matching its weight is not
+   enough. */
+.btn.small.theme-btn {
+  padding: 8px 10px;
+  line-height: 0;
+}
+
+.theme-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.theme-icon-sun {
+  display: none;
+}
+
+:root[data-theme='dark'] .theme-icon-sun {
+  display: block;
+}
+
+:root[data-theme='dark'] .theme-icon-moon {
+  display: none;
+}
+
+/* The flag hairline is a presentation attribute stamped from i18n.js, so only
+   the dark rule is written: light keeps the attribute's own value even if this
+   declaration is ever dropped. Literal, not var() — an unresolvable var() in a
+   presentation-attribute override falls back to the property's initial value,
+   not to the attribute. */
+:root[data-theme='dark'] .flag-edge {
+  stroke: rgba(255, 250, 240, 0.42);
+}
+
+/* Toggling swaps ~90 colours at once; without this the handful of properties
+   that happen to be transitioned (button filter, tile lift) would fade while
+   everything else snaps. game.js drops the class on the next frame. */
+html.theme-switching,
+html.theme-switching * {
+  transition: none !important;
 }
 
 /* --- buttons -------------------------------------------------------------- */
@@ -171,18 +372,19 @@ body.dialog-open .mp-btn {
 }
 
 .btn:disabled {
-  opacity: 0.55;
+  opacity: var(--o-disabled);
   cursor: default;
 }
 
 .btn.primary {
   background: var(--c-gold);
-  color: #4c320a;
+  color: var(--c-on-gold);
   box-shadow: 0 3px 0 var(--c-gold-deep);
 }
 
 .btn.primary:hover:not(:disabled) {
-  filter: brightness(1.06);
+  background: var(--c-gold-hover);
+  filter: var(--btn-primary-hover-filter);
 }
 
 .btn.primary:active:not(:disabled) {
@@ -192,11 +394,11 @@ body.dialog-open .mp-btn {
 .btn.ghost {
   background: transparent;
   color: var(--c-ink-soft);
-  border: 2px solid #dfc179;
+  border: 2px solid var(--c-border);
 }
 
 .btn.ghost:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--c-wash);
 }
 
 .btn.small {
@@ -242,7 +444,7 @@ body.dialog-open .mp-btn {
   border-radius: 999px;
   padding: 8px 18px;
   margin-bottom: 6px;
-  box-shadow: 0 2px 0 rgba(122, 87, 29, 0.15);
+  box-shadow: var(--sh-ledge-2);
   min-height: 41px;
   font-size: 15px;
 }
@@ -316,8 +518,8 @@ body.dialog-open .mp-btn {
   text-align: right;
 }
 
-.word-status.ok { color: #3d8b40; }
-.word-status.bad { color: #c2453a; }
+.word-status.ok { color: var(--c-ok); }
+.word-status.bad { color: var(--c-error); }
 
 /* --- history panel ---------------------------------------------------------- */
 
@@ -327,7 +529,7 @@ body.dialog-open .mp-btn {
   overflow-y: auto;
   background: var(--c-panel);
   border-radius: 16px;
-  box-shadow: 0 3px 0 rgba(122, 87, 29, 0.15);
+  box-shadow: var(--sh-ledge-3);
   padding: 14px;
   flex: none;
   position: sticky;
@@ -342,7 +544,7 @@ body.dialog-open .mp-btn {
   font-weight: 800;
   font-size: 15px;
   padding-bottom: 10px;
-  border-bottom: 2px solid rgba(122, 87, 29, 0.12);
+  border-bottom: 2px solid var(--c-rule);
 }
 
 .history-list {
@@ -360,14 +562,14 @@ body.dialog-open .mp-btn {
 }
 
 .hist-row:nth-child(even) {
-  background: rgba(122, 87, 29, 0.05);
+  background: var(--c-stripe);
 }
 
 .hist-num {
   font-size: 11px;
   font-weight: 700;
   color: var(--c-ink-soft);
-  opacity: 0.7;
+  opacity: var(--o-hist-num);
   min-width: 18px;
   text-align: right;
 }
@@ -394,7 +596,7 @@ body.dialog-open .mp-btn {
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(90, 61, 16, 0.5);
+  background: var(--c-scrim);
   display: none;
   align-items: center;
   justify-content: center;
@@ -407,14 +609,14 @@ body.dialog-open .mp-btn {
 }
 
 .modal {
-  background: #fff9e6;
+  background: var(--c-surface);
   border-radius: 22px;
   padding: 28px 26px;
   width: 100%;
   max-width: 440px;
   max-height: 92vh;
   overflow-y: auto;
-  box-shadow: 0 24px 70px rgba(60, 38, 5, 0.35);
+  box-shadow: var(--sh-float-modal);
   text-align: center;
 }
 
@@ -423,7 +625,7 @@ body.dialog-open .mp-btn {
   font-size: 28px;
   font-weight: 900;
   letter-spacing: 0.14em;
-  color: #7a571d;
+  color: var(--c-ink-head);
 }
 
 .modal-tag {
@@ -451,12 +653,12 @@ body.dialog-open .mp-btn {
   gap: 4px;
   padding: 16px 10px;
   border-radius: 16px;
-  border: 3px solid transparent;
-  background: #fff;
+  border: 3px solid var(--c-edge);
+  background: var(--c-card);
   cursor: pointer;
   font: inherit;
   color: var(--c-ink);
-  box-shadow: 0 2px 0 rgba(122, 87, 29, 0.12);
+  box-shadow: var(--sh-ledge-card);
   transition: border-color 120ms ease, transform 120ms ease;
 }
 
@@ -529,7 +731,7 @@ body.dialog-open .mp-btn {
   margin: 0;
   font-size: 14px;
   line-height: 1.45;
-  color: #6d5322;
+  color: var(--c-ink-mid);
 }
 
 .howto-modal .btn {
@@ -546,8 +748,9 @@ body.dialog-open .mp-btn {
   transform: translateX(-50%) translateY(16px);
   opacity: 0;
   transition: opacity 220ms ease, transform 220ms ease;
-  background: #5a3d10;
-  color: #ffedbd;
+  background: var(--c-toast-bg);
+  color: var(--c-toast-ink);
+  box-shadow: var(--sh-toast);
   padding: 11px 20px;
   border-radius: 999px;
   font-size: 14px;
@@ -604,14 +807,14 @@ body.dialog-open .mp-btn {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #3d8b40;
-  box-shadow: 0 0 0 3px rgba(61, 139, 64, 0.22);
+  background: var(--c-ok);
+  box-shadow: var(--sh-dot-ok);
   flex: none;
 }
 
 .mp-dot.busy {
   background: var(--c-gold);
-  box-shadow: 0 0 0 3px rgba(240, 169, 60, 0.25);
+  box-shadow: var(--sh-dot-busy);
 }
 
 .mp-name {
@@ -646,8 +849,8 @@ body.dialog-open .mp-btn {
 .field input {
   padding: 10px 12px;
   border-radius: 10px;
-  border: 2px solid #dfc179;
-  background: #fff;
+  border: 2px solid var(--c-border);
+  background: var(--c-well);
   color: var(--c-ink);
   font: inherit;
   font-size: 16px; /* 16px stops iOS from zooming the page into the field */
@@ -657,13 +860,13 @@ body.dialog-open .mp-btn {
 .field input:focus {
   outline: none;
   border-color: var(--c-gold);
-  box-shadow: 0 0 0 3px rgba(240, 169, 60, 0.28);
+  box-shadow: var(--sh-focus);
 }
 
 .form-error {
   min-height: 18px;
   margin-top: 8px;
-  color: #c2453a;
+  color: var(--c-error);
   font-size: 13px;
   font-weight: 700;
 }
@@ -741,9 +944,9 @@ body.dialog-open .mp-btn {
   align-items: center;
   gap: 10px;
   padding: 8px 10px 8px 12px;
-  background: #fff;
+  background: var(--c-card);
   border-radius: 12px;
-  box-shadow: 0 2px 0 rgba(122, 87, 29, 0.12);
+  box-shadow: var(--sh-ledge-card);
   font-size: 14px;
 }
 
@@ -766,16 +969,16 @@ body.dialog-open .mp-btn {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #3d8b40;
+  background: var(--c-ok);
   flex: none;
 }
 
 .presence-dot.off {
-  background: #c4b89a;
+  background: var(--c-offline);
 }
 
 .player-row.waiting .btn.primary {
-  opacity: 0.55;
+  opacity: var(--o-disabled);
 }
 
 .record-list {
@@ -794,7 +997,7 @@ body.dialog-open .mp-btn {
 }
 
 .record-row:nth-child(odd) {
-  background: rgba(122, 87, 29, 0.05);
+  background: var(--c-stripe);
 }
 
 .record-row .record-who {
@@ -835,14 +1038,14 @@ body.dialog-open .mp-btn {
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
-  background: rgba(122, 87, 29, 0.1);
+  background: var(--c-tint-neutral);
   color: var(--c-ink-soft);
 }
 
-.pill.win  { background: rgba(61, 139, 64, 0.16); color: #2f7a33; }
-.pill.loss { background: rgba(221, 82, 69, 0.16); color: #b5382d; }
-.pill.draw { background: rgba(86, 121, 221, 0.16); color: #3b5bb8; }
-.pill.incomplete { background: rgba(240, 169, 60, 0.22); color: #9a6410; }
+.pill.win  { background: var(--c-tint-win); color: var(--c-ink-win); }
+.pill.loss { background: var(--c-tint-loss); color: var(--c-danger-ink); }
+.pill.draw { background: var(--c-tint-draw); color: var(--c-ink-draw); }
+.pill.incomplete { background: var(--c-tint-gold); color: var(--c-ink-gold); }
 
 .word-chips {
   display: flex;
@@ -853,7 +1056,7 @@ body.dialog-open .mp-btn {
 .word-chip {
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(240, 169, 60, 0.22);
+  background: var(--c-tint-gold);
   font-weight: 800;
   font-size: 13px;
   letter-spacing: 0.04em;
@@ -881,10 +1084,10 @@ body.dialog-open .mp-btn {
 }
 
 .challenge-card {
-  background: #fff9e6;
+  background: var(--c-surface);
   border-radius: 16px;
   padding: 14px 16px;
-  box-shadow: 0 14px 34px rgba(60, 38, 5, 0.35);
+  box-shadow: var(--sh-float-card);
   animation: card-in 240ms cubic-bezier(0.3, 1.3, 0.5, 1);
 }
 
@@ -914,7 +1117,6 @@ body.dialog-open .mp-btn {
 
 @media (max-width: 560px) {
   .topbar-actions {
-    flex-wrap: wrap;
     justify-content: center;
   }
 }
@@ -936,8 +1138,8 @@ html.joining #setup-overlay {
 }
 
 .btn.small.danger {
-  border-color: rgba(221, 82, 69, 0.55);
-  color: #b5382d;
+  border-color: var(--c-danger-edge);
+  color: var(--c-danger-ink);
 }
 
 /* The setup and game-over dialogs stay clear of the (raised) top bar even on

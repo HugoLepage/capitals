@@ -41,16 +41,20 @@ const hexPath = roundedHexPath(FACE_SCALE, CORNER_R);
   <!-- shared gradient that fakes the soft, rounded surface of every tile -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <defs>
+      <!-- The stop values here are the day theme, and stay put: hexgrid.css
+           overrides them by class for dark only, so these attributes also
+           remain a genuine fallback. Named classes rather than :nth-child so
+           inserting a stop later cannot silently re-map the values. -->
       <linearGradient id="tile-sheen" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#ffffff" stop-opacity="0.34" />
-        <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.08" />
-        <stop offset="0.78" stop-color="#000000" stop-opacity="0.02" />
-        <stop offset="1" stop-color="#000000" stop-opacity="0.08" />
+        <stop class="sheen-a" offset="0" stop-color="#ffffff" stop-opacity="0.34" />
+        <stop class="sheen-b" offset="0.45" stop-color="#ffffff" stop-opacity="0.08" />
+        <stop class="sheen-c" offset="0.78" stop-color="#000000" stop-opacity="0.02" />
+        <stop class="sheen-d" offset="1" stop-color="#000000" stop-opacity="0.08" />
       </linearGradient>
       <linearGradient id="tile-rim" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#ffffff" stop-opacity="0.5" />
-        <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.06" />
-        <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+        <stop class="rim-a" offset="0" stop-color="#ffffff" stop-opacity="0.5" />
+        <stop class="rim-b" offset="0.55" stop-color="#ffffff" stop-opacity="0.06" />
+        <stop class="rim-c" offset="1" stop-color="#ffffff" stop-opacity="0" />
       </linearGradient>
     </defs>
   </svg>

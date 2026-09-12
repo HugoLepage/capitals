@@ -25,6 +25,7 @@ import { setPresenceRoom, watchPlayer } from './presence.js';
 import {
   countWord, endBotMatch, finalizeOnlineMatch, onlineStartEntries, startBotMatch,
 } from './stats.js';
+import { initTheme, resolvedTheme, toggleTheme } from './theme.js';
 
 const BASE = import.meta.env.BASE_URL.endsWith('/')
   ? import.meta.env.BASE_URL
@@ -98,6 +99,7 @@ function cacheDom() {
     langPicker: $('lang-picker'),
     btnLang: $('btn-lang'),
     langMenu: $('lang-menu'),
+    btnTheme: $('btn-theme'),
   };
   tileEls = TILES.map((t) => $(`hex-${t.id}`));
 }
@@ -1207,6 +1209,25 @@ function bindLangPicker() {
   });
 }
 
+// --- Theme -----------------------------------------------------------------
+
+// The two icons are swapped by CSS; only the pressed state needs JS.
+function syncThemeButton() {
+  els.btnTheme.setAttribute('aria-pressed', String(resolvedTheme() === 'dark'));
+}
+
+// Every colour changes at once, but only a few properties are transitioned
+// (the primary button's filter, the tile lift), so without this the board
+// would snap while the buttons faded. Suppress for the frame the swap takes.
+function switchTheme() {
+  const root = document.documentElement;
+  root.classList.add('theme-switching');
+  toggleTheme();
+  syncThemeButton();
+  void root.offsetHeight; // flush the new colours while transitions are off
+  requestAnimationFrame(() => root.classList.remove('theme-switching'));
+}
+
 // --- Setup screen ----------------------------------------------------------
 
 let chosenMode = 'bot';
@@ -1230,6 +1251,7 @@ function bindUi() {
   els.btnModeOnline.addEventListener('click', openLobby);
   els.btnResign.addEventListener('click', resign);
 
+  els.btnTheme.addEventListener('click', switchTheme);
   els.btnNewGame.addEventListener('click', openSetup);
   els.btnChangeMode.addEventListener('click', openSetup);
   els.btnRematch.addEventListener('click', () => {
@@ -1330,6 +1352,8 @@ const withTimeout = (promise, ms) => Promise.race([promise, sleep(ms).then(() =>
 
 export async function initGame() {
   cacheDom();
+  initTheme(syncThemeButton); // the OS can flip the theme while we follow it
+  syncThemeButton();
   setLang(detectLang());
   applyStaticStrings();
   renderLangPicker();

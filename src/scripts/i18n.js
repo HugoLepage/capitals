@@ -9,7 +9,7 @@
 // The rounded corners come from `clip-path` on .flag (see main.css) so the
 // same markup can be stamped out twice without duplicating element ids.
 const flag = (body) => `<svg class="flag" viewBox="0 0 60 40" aria-hidden="true">${body}
-  <rect x="1" y="1" width="58" height="38" rx="5" fill="none" stroke="rgba(70,45,10,0.3)" stroke-width="2" />
+  <rect class="flag-edge" x="1" y="1" width="58" height="38" rx="5" fill="none" stroke="rgba(70,45,10,0.3)" stroke-width="2" />
 </svg>`;
 
 const FLAG_GB = flag(`
@@ -53,6 +53,7 @@ const BAG_IT = {
 const STRINGS = {
   en: {
     'lang.pick': 'Language',
+    'theme.toggle': 'Toggle dark mode',
     'top.help': 'How to play',
     'top.newGame': 'New game',
     'word.prompt': 'Tap letters to spell a word',
@@ -199,6 +200,7 @@ const STRINGS = {
 
   fr: {
     'lang.pick': 'Langue',
+    'theme.toggle': 'Basculer le mode sombre',
     'top.help': 'Comment jouer',
     'top.newGame': 'Nouvelle partie',
     'word.prompt': 'Touchez des lettres pour former un mot',
@@ -345,6 +347,7 @@ const STRINGS = {
 
   it: {
     'lang.pick': 'Lingua',
+    'theme.toggle': 'Attiva/disattiva la modalità scura',
     'top.help': 'Come si gioca',
     'top.newGame': 'Nuova partita',
     'word.prompt': 'Tocca le lettere per comporre una parola',

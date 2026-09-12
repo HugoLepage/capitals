@@ -76,6 +76,33 @@ translated interface copy.
 The loader drops anything longer than 12 letters — no board can offer more — which keeps
 the Italian list, a full inflected-forms dump, down to a size a browser can hold.
 
+## Appearance
+
+The sun/moon button in the top bar switches between the light parchment theme and
+*Lamplight*, a dark one: charcoal tiles with off-white letters on a near-black page. Until
+it is pressed the game follows the operating system's own light/dark setting and keeps
+following it if that changes; the first press writes an explicit choice to `localStorage`,
+and from then on that choice wins.
+
+Every colour in the app is a CSS custom property, declared twice — once in `:root` and
+once in `:root[data-theme='dark']` — in `src/styles/main.css` for the chrome and
+`src/styles/hexgrid.css` for the board. The two blocks carry the same declarations in the
+same order, so the themes diff line by line and a new colour is hard to add to only one of
+them. `src/scripts/theme.js` holds the preference, mirroring how `i18n.js` holds the
+language.
+
+Two details are less obvious than they look:
+
+- The theme is stamped onto `<html data-theme>` by an inline script in `src/layouts/Layout.astro`,
+  before the stylesheet is even parsed, so a dark-mode player never sees a flash of
+  parchment. That script cannot import, so it repeats the storage key and the two
+  `theme-color` values from `theme.js` — keep the two in sync.
+- The tiles' 3D shading comes from two SVG `<linearGradient>` definitions whose stops live
+  in markup, outside any tile, where a token swap cannot reach them. Each stop carries a
+  class instead, and `hexgrid.css` overrides `stop-color` / `stop-opacity` for dark only,
+  with literal values — CSS beats SVG presentation attributes, but an unresolvable `var()`
+  in `stop-opacity` would fall back to `1` and blow the shading out, so no `var()` there.
+
 ## Development
 
 ```sh

@@ -5,6 +5,57 @@
 :root {
   --hex-w: clamp(42px, min(12.5vw, 10.3vh), 92px);
   --hex-h: calc(var(--hex-w) * 0.8660254);
+
+  /* The board's own colours. They live here rather than in main.css because
+     the tiles carry the heavier, more saturated version of each player's
+     colour — the chrome's --c-red / --c-blue are the lighter labels. */
+  --c-tile-face: #f8f3e6;
+  --c-tile-edge: #c9bfa5;
+  --c-tile-p0: #e56052;
+  --c-tile-p0-edge: #ab372d;
+  --c-tile-p1: #6285e0;
+  --c-tile-p1-edge: #3854a8;
+  --c-tile-sel: #777777;
+  --c-tile-sel-edge: #5b5b5b;
+  --c-tile-ink: #7a571d;
+  --c-tile-sel-ink: #fff;
+  --c-castle: #504040;
+  --c-badge: #fffdf4;
+  --c-badge-ink: #6b4d16;
+  --sh-tile: drop-shadow(0 1.5px 1px rgba(122, 87, 29, 0.18));
+  --sh-tile-letter: 0 2px 2px rgba(122, 87, 29, 0.18);
+  --sh-tile-letter-sel: 0 2px 2px rgba(0, 0, 0, 0.22);
+  --sh-castle: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.18));
+  --sh-badge: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* Charcoal tiles with off-white letters. The five-layer 3D recipe is kept
+   intact, only re-seated: the extrude still lands between the page and the
+   face (1.27:1 above the page, 1.43:1 below it) so "darker below" keeps
+   reading as a side wall rather than a hole. Two things invert outright — the
+   selected tile becomes the only light tile on a dark board, and the order
+   badge becomes a near-black pill with a cream ring. */
+:root[data-theme='dark'] {
+  --c-tile-face: #484036;
+  --c-tile-edge: #2f281f;
+  --c-tile-p0: #9e372c;
+  --c-tile-p0-edge: #5e1e17;
+  --c-tile-p1: #3b52a2;
+  --c-tile-p1-edge: #1f2d63;
+  --c-tile-sel: #cdc1a6;
+  --c-tile-sel-edge: #a89c83;
+  --c-tile-ink: #ece6da;
+  --c-tile-sel-ink: #221d16;
+  --c-castle: #ece6da;
+  --c-badge: #221d16;
+  --c-badge-ink: #ece6da;
+  --sh-tile: drop-shadow(0 1.5px 1px rgba(0, 0, 0, 0.6));
+  --sh-tile-letter: 0 2px 2px rgba(0, 0, 0, 0.5);
+  /* dark ink on a pale tile: the halo has to become a light bottom highlight,
+     or the emboss reads as a smudge */
+  --sh-tile-letter-sel: 0 1px 0 rgba(255, 252, 240, 0.45);
+  --sh-castle: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55));
+  --sh-badge: 0 2px 5px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(236, 230, 218, 0.24);
 }
 
 .board-wrap {
@@ -51,7 +102,7 @@
   overflow: visible;
   pointer-events: none;
   /* soft ambient shadow under the whole tile */
-  filter: drop-shadow(0 1.5px 1px rgba(122, 87, 29, 0.18));
+  filter: var(--sh-tile);
 }
 
 /* the darker "extruded" rim that gives the tile its 3D depth */
@@ -77,6 +128,9 @@
    shading at the bottom — makes the surface read as pillowy */
 .hex-sheen {
   fill: url(#tile-sheen);
+  /* Per-tile dimmer for the one shared gradient. Unset in light, where the
+     fallback 1 is also the property's initial value, so light is untouched. */
+  opacity: var(--sheen-o, 1);
   pointer-events: none;
 }
 
@@ -94,15 +148,15 @@
 .hex-letter {
   font-size: calc(var(--hex-w) * 0.4);
   font-weight: 800;
-  color: #7a571d;
-  text-shadow: 0 2px 2px rgba(122, 87, 29, 0.18);
+  color: var(--c-tile-ink);
+  text-shadow: var(--sh-tile-letter);
   transform: translateY(-4%);
 }
 
 .castle {
   width: 48%;
   height: auto;
-  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.18));
+  filter: var(--sh-castle);
 }
 
 /* selection order badge */
@@ -117,11 +171,11 @@
   min-width: calc(var(--hex-w) * 0.26);
   height: calc(var(--hex-w) * 0.26);
   border-radius: 999px;
-  background: #fffdf4;
-  color: #6b4d16;
+  background: var(--c-badge);
+  color: var(--c-badge-ink);
   font-size: calc(var(--hex-w) * 0.16);
   font-weight: 800;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--sh-badge);
   pointer-events: none;
 }
 
@@ -132,13 +186,13 @@
 /* --- tile kinds ---------------------------------------------------------- */
 
 .hex.is-blank {
-  --face: #f8f3e6;
-  --extrude: #c9bfa5;
+  --face: var(--c-tile-face);
+  --extrude: var(--c-tile-edge);
 }
 
 .hex.is-letter {
-  --face: #f8f3e6;
-  --extrude: #c9bfa5;
+  --face: var(--c-tile-face);
+  --extrude: var(--c-tile-edge);
 }
 
 .hex.is-letter .hex-face {
@@ -146,33 +200,35 @@
 }
 
 .hex.is-base.p0 {
-  --face: #e56052;
-  --extrude: #ab372d;
+  --face: var(--c-tile-p0);
+  --extrude: var(--c-tile-p0-edge);
 }
 
 .hex.is-base.p1 {
-  --face: #6285e0;
-  --extrude: #3854a8;
+  --face: var(--c-tile-p1);
+  --extrude: var(--c-tile-p1-edge);
 }
 
 .hex.is-base {
-  --face: #f8f3e6;
-  --extrude: #c9bfa5;
+  --face: var(--c-tile-face);
+  --extrude: var(--c-tile-edge);
 }
 
 /* .hex.is-base.p0 .hex-content { color: #d94a3d; }
 .hex.is-base.p1 .hex-content { color: #4a74d8; } */
 
-.hex.is-base .hex-content { color: #504040; }
+/* This is the castle artwork, not just text — CASTLE_SVG is built with
+   fill="currentColor" (game.js). */
+.hex.is-base .hex-content { color: var(--c-castle); }
 
 .hex.is-territory.p0 {
-  --face: #e56052;
-  --extrude: #ab372d;
+  --face: var(--c-tile-p0);
+  --extrude: var(--c-tile-p0-edge);
 }
 
 .hex.is-territory.p1 {
-  --face: #6285e0;
-  --extrude: #3854a8;
+  --face: var(--c-tile-p1);
+  --extrude: var(--c-tile-p1-edge);
 }
 
 /* selected letters preview the capturing player's colour */
@@ -187,15 +243,15 @@
 } */
 
 .hex.is-selected {
-  --face: #777777;
-  --extrude: #5b5b5b;
+  --face: var(--c-tile-sel);
+  --extrude: var(--c-tile-sel-edge);
 }
 
 
 
 .hex.is-selected .hex-letter {
-  color: #fff;
-  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.22);
+  color: var(--c-tile-sel-ink);
+  text-shadow: var(--sh-tile-letter-sel);
 }
 
 /* --- interaction --------------------------------------------------------- */
@@ -271,4 +327,35 @@
     animation-duration: 1ms;
     animation-delay: 0ms !important;
   }
+}
+
+/* --- the tile gradients in the dark ---------------------------------------- */
+
+/* The two <linearGradient> defs live in their own hidden <svg> in
+   hexgrid.astro, outside every .hex, so neither a :root token nor a per-tile
+   custom property reaches their stops. CSS declarations do beat SVG
+   presentation attributes, though, so these rules are the lever — written
+   only for dark, with literal values. Not var(): an unresolvable var() in
+   stop-opacity falls back to the property's initial value of 1, not to the
+   attribute, which would blow the tile shading out completely.
+
+   The key light is halved and warmed so tiles read as lamplit rather than
+   fogged, the shading at the bottom is tripled so the dome keeps a shadow
+   side, and the bevel's last stop changes species — from a vanishing white to
+   30% black — to cut the occlusion seam that the contact shadow can no longer
+   provide against a near-black page. */
+:root[data-theme='dark'] .sheen-a { stop-color: #fff3e0; stop-opacity: 0.16; }
+:root[data-theme='dark'] .sheen-b { stop-color: #fff3e0; stop-opacity: 0.04; }
+:root[data-theme='dark'] .sheen-c { stop-color: #000000; stop-opacity: 0.1; }
+:root[data-theme='dark'] .sheen-d { stop-color: #000000; stop-opacity: 0.26; }
+
+:root[data-theme='dark'] .rim-a { stop-color: #fff3e0; stop-opacity: 0.26; }
+:root[data-theme='dark'] .rim-b { stop-color: #fff3e0; stop-opacity: 0.05; }
+:root[data-theme='dark'] .rim-c { stop-color: #000000; stop-opacity: 0.3; }
+
+/* One gradient has to flatter four faces at once, and the selected tile is the
+   pale one: halve its share of that 26% black bottom stop. Sets no --face or
+   --extrude, so it cannot disturb the tile-kind order above. */
+:root[data-theme='dark'] .hex.is-selected {
+  --sheen-o: 0.5;
 }

@@ -12,6 +12,7 @@ const base = import.meta.env.BASE_URL.endsWith('/')
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f8ecc0" />
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content="Capitals — a word game of hexes and conquest. Spell words, capture territory, and storm your opponent's castle." />
@@ -20,6 +21,28 @@ const base = import.meta.env.BASE_URL.endsWith('/')
          before first paint so it never flashes (game.js lifts this again). -->
     <script is:inline>
       if (/[?&]session=/.test(location.search)) document.documentElement.classList.add('joining');
+    </script>
+    <!-- The theme is stamped before first paint too, so a dark-mode player
+         never gets a full screen of parchment on the way in. game.js imports
+         theme.js as a module, which Astro defers — far too late for this.
+         An is:inline script cannot import, so the storage key, the data-theme
+         values and the two theme-color hexes are repeated from
+         src/scripts/theme.js; keep the two in sync. -->
+    <script is:inline>
+      (function () {
+        var saved = null;
+        try {
+          saved = localStorage.getItem('capitals.theme');
+        } catch (e) {
+          /* private mode: fall through to the system preference */
+        }
+        var dark = saved === 'dark' || (saved !== 'light' &&
+          typeof matchMedia === 'function' &&
+          matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', dark ? '#17130f' : '#f8ecc0');
+      })();
     </script>
   </head>
   <body>
